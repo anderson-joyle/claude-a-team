@@ -205,69 +205,104 @@ Rules:
 }
 ```
 
-## TDDProbeOutputBody
+## ProbeOutputBody
 
-Produced by ENGINEER (phase 1 — tdd-probe). Set `artifact_type = "tdd_probe_output"`.
+Produced by ENGINEER (phase 1 — probe). Set `artifact_type = "probe_output"`. Save as `probe-output.json`.
+
+`probe_mode` is derived from PM output `work_type`: `"diagnosis"` for `bug`; `"tdd"` for `feature`, `improvement`, or `technical_debt`.
 
 ```json
 {
+  "probe_mode": "diagnosis | tdd",
   "probe_summary": "string",
-  "expected_failure_signatures": [
-    {
-      "test_scenario_id": "TS-1",
-      "expected_exit_code": "number | null",
-      "expected_stderr_pattern": "string | null",
-      "expected_stdout_pattern": "string | null",
-      "rationale": "string"
-    }
-  ],
-  "probe_test_scenarios": [TestScenario],
-  "probe_commands": [CommandSpec],
   "confidence_in_reproduction": "low | medium | high",
   "questions_for_user": ["string", "..."],
-  "assumptions": ["string", "..."]
+  "assumptions": ["string", "..."],
+
+  "diagnosis": {
+    "feedback_loop_type": "failing_test | curl_http | cli_snapshot | headless_browser | trace_replay | throwaway_harness | property_fuzz | bisection | differential | hitl_script",
+    "feedback_loop_description": "string",
+    "reproduction_confirmed": true,
+    "reproduction_rate": "string | null",
+    "ranked_hypotheses": [
+      {
+        "id": "H-1",
+        "rank": 1,
+        "statement": "string",
+        "prediction": "string"
+      }
+    ],
+    "probe_commands": [CommandSpec]
+  },
+
+  "tdd": {
+    "probe_test_scenarios": [TestScenario],
+    "probe_commands": [CommandSpec],
+    "expected_failure_signatures": [
+      {
+        "test_scenario_id": "TS-1",
+        "expected_exit_code": "number | null",
+        "expected_stderr_pattern": "string | null",
+        "expected_stdout_pattern": "string | null",
+        "rationale": "string"
+      }
+    ]
+  }
 }
 ```
 
 Rules:
-- `expected_failure_signatures` must contain one entry per `probe_test_scenarios` item.
-- At least one `probe_commands` entry must be linked to a test scenario.
-- `confidence_in_reproduction` reflects how certain the engineer is that running these commands will surface the described problem. If `low`, emit `questions_for_user`.
+- Populate only the block that matches `probe_mode`. Leave the other block `null`.
+- **Diagnosis mode**: `reproduction_confirmed` must be `true` for the gate to pass. `ranked_hypotheses` must have at least 3 entries. Each `prediction` must be falsifiable ("If X is the cause, then changing Y will..."). If `confidence_in_reproduction` is `low`, emit `questions_for_user`. `reproduction_rate` is required for non-deterministic bugs.
+- **TDD mode**: `expected_failure_signatures` must have one entry per `probe_test_scenarios` item. At least one `probe_commands` entry must link to a test scenario.
 - Do **not** include implementation code or `planned_changes` in this artifact.
 
-## TDDGateOutputBody
+## ProbeGateOutputBody
 
-Produced by the TDD Gate check. Set `artifact_type = "tdd_gate_output"`.
+Produced by the Probe Gate check. Set `artifact_type = "probe_gate_output"`. Save as `probe-gate-output.json`.
 
 ```json
 {
+  "probe_mode": "diagnosis | tdd",
   "gate_decision": "GateDecision",
   "probe_analysis": "string",
-  "matched_signatures": [
-    {
-      "test_scenario_id": "TS-1",
-      "expected_signature": "string",
-      "actual_output_excerpt": "string",
-      "matched": true
-    }
-  ],
-  "unmatched_signatures": [
-    {
-      "test_scenario_id": "TS-1",
-      "expected_signature": "string",
-      "actual_output_excerpt": "string",
-      "mismatch_reason": "string"
-    }
-  ],
+
+  "diagnosis_assessment": {
+    "feedback_loop_confirmed": "boolean",
+    "reproduction_confirmed": "boolean",
+    "hypotheses_count": "number",
+    "reproduction_assessment": "string"
+  },
+
+  "tdd_assessment": {
+    "matched_signatures": [
+      {
+        "test_scenario_id": "TS-1",
+        "expected_signature": "string",
+        "actual_output_excerpt": "string",
+        "matched": true
+      }
+    ],
+    "unmatched_signatures": [
+      {
+        "test_scenario_id": "TS-1",
+        "expected_signature": "string",
+        "actual_output_excerpt": "string",
+        "mismatch_reason": "string"
+      }
+    ]
+  },
+
   "skip_reason": "string | null",
   "options_for_user": ["string", "..."]
 }
 ```
 
 Rules:
-- `gate_decision.decision` must be one of `pass | fail | not_applicable` (use `not_applicable` when user explicitly skips TDD).
-- `options_for_user` is required when `decision` is `fail` or `not_applicable` was not yet chosen.
-- `skip_reason` is required when `decision = not_applicable`.
+- Populate only the assessment block that matches `probe_mode`. Leave the other `null`.
+- `gate_decision.decision` must be one of `pass | fail | blocked | not_applicable`.
+- Use `not_applicable` only when the user explicitly instructs to skip the probe. `skip_reason` is required in that case.
+- `options_for_user` is required when `decision` is `fail` or `blocked`.
 
 ## EngineerOutputBody
 

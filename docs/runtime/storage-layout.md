@@ -39,9 +39,9 @@ Use these canonical filenames when applicable:
 - `pm-output.json`
 - `architect-output.json`
 - `security-output.json`
-- `tdd-probe-output.json` ← ENGINEER phase 1 (TDD probe)
-- `tdd-probe-results.json` ← EXECUTOR probe run results
-- `tdd-gate-output.json` ← TDD Gate decision
+- `probe-output.json` ← ENGINEER phase 1 (diagnosis probe for bugs | tdd probe for features)
+- `probe-results.json` ← EXECUTOR probe run results
+- `probe-gate-output.json` ← Probe Gate decision
 - `engineer-output.json` ← ENGINEER phase 2 (implementation)
 - `review-output.json`
 - `execution-results.json`

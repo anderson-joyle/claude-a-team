@@ -34,16 +34,16 @@ Default flow:
 
 ```
 INTAKE -> PM -> [ARCHITECT?] -> [SECURITY?]
-  -> ENGINEER (tdd-probe)
+  -> ENGINEER (probe: diagnosis if bug | tdd if feature/improvement)
   -> EXECUTOR (probe run)
-  -> TDD-GATE
+  -> PROBE-GATE
   -> ENGINEER (impl)
   -> [REVIEW?] -> EXECUTOR -> QA -> [RELEASE_READINESS?]
 ```
 
 The executor is a runtime stage, not a creative stage.
 
-The TDD probe exists to validate problem clarity: if the engineer cannot write tests that reproduce the described failure, the problem statement is not precise enough to implement safely. The TDD Gate enforces this check before any implementation code is written.
+The probe phase exists to validate problem clarity before any implementation code is written. For bugs, this is a **Diagnosis Probe**: the engineer builds a reproducible feedback loop, confirms the failure, and produces ranked hypotheses. For features and improvements, this is a **TDD Probe**: the engineer writes failing tests that define the expected behavior. The Probe Gate enforces this check in both modes and is a hard stop.
 
 ## Read these files before running any stage
 
@@ -60,7 +60,7 @@ Use the matching skill for each creative stage:
 - `.claude/skills/pm/SKILL.md`
 - `.claude/skills/architect/SKILL.md`
 - `.claude/skills/security/SKILL.md`
-- `.claude/skills/engineer/SKILL.md`
+- `.claude/skills/engineer/SKILL.md` — routes internally to `.claude/skills/diagnose/SKILL.md` (bugs) or TDD probe (features/improvements)
 - `.claude/skills/review/SKILL.md`
 - `.claude/skills/qa/SKILL.md`
 - `.claude/skills/release-readiness/SKILL.md`
@@ -71,6 +71,7 @@ Use the matching skill for each creative stage:
 - Run **Security** when auth, permissions, secrets, external input, file access, network access, code execution, sensitive data, dependency trust, CI/CD, release, or supply-chain concerns are present.
 - Run **Review** when a second opinion is requested or the change is medium/high risk.
 - Run **Release Readiness** when code changes were applied or the user asks whether the work is ready to ship.
-- **TDD-GATE always runs** between the probe executor and the implementation phase. If probe results are unsatisfactory, suspend and surface the analysis to the user — do not proceed to implementation without explicit user direction.
+- **Engineer probe mode is determined by PM `work_type`**: use Diagnosis Probe for `bug`; use TDD Probe for `feature`, `improvement`, or `technical_debt`.
+- **PROBE-GATE always runs** between the probe executor and the implementation phase. If probe results are unsatisfactory, suspend and surface the analysis to the user — do not proceed to implementation without explicit user direction.
 
 For the full details, use the runtime docs.

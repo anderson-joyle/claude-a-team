@@ -1,5 +1,7 @@
 # Claude A-TEAM
 
+> ⚠️ This is a personal project, under MIT license. ⚠️
+
 A-TEAM is a structured, multi-role AI workflow for software engineering work. Each request moves through a pipeline of specialist skills — Intake, PM, Engineer, QA, and others — where every stage reads the previous stage's typed JSON artifact and writes a new one. This keeps each role's reasoning separate, auditable, and chainable across models or runtimes.
 
 You invoke skills with `/intake`, `/pm`, `/engineer`, `/qa`, etc. The skills are self-contained: each one reads the contract docs and its predecessor artifacts, does its job, and produces a single JSON output. Claude Code runs the pipeline; you steer it.

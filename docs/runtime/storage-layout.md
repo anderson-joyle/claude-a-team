@@ -40,15 +40,33 @@ Use these canonical filenames when applicable:
 - `architect-output.json`
 - `security-output.json`
 - `probe-output.json` ← ENGINEER phase 1 (diagnosis probe for bugs | tdd probe for features)
-- `probe-results.json` ← EXECUTOR probe run results
+- `probe-results.json` ← EXECUTOR probe run results (`ExecutionResultsBody`)
 - `probe-gate-output.json` ← Probe Gate decision
 - `engineer-output.json` ← ENGINEER phase 2 (implementation)
 - `review-output.json`
-- `execution-results.json`
+- `execution-results.json` ← EXECUTOR impl run results (`ExecutionResultsBody`)
 - `qa-output.json`
 - `release-readiness.json`
 
+Stage-quality sidecars (additive, optional but recommended):
+
+- `intake-quality.json`, `pm-quality.json`, `architect-quality.json`, `security-quality.json`,
+  `engineer-quality.json` (with `phase = "probe" | "impl"`),
+  `review-quality.json`, `qa-quality.json`, `release-readiness-quality.json`
+
+Each sidecar uses `artifact_type = "stage_quality"` and lists the artifact it describes in `parent_artifact_ids`. See `StageQualityBody` in stage-body-schemas.md.
+
 Versioned variants are allowed if the canonical artifact type remains unchanged.
+
+## Cross-request memory
+
+- `_team-knowledge/<YYYY-MM>/<short-name>.json` — `team_knowledge` patterns produced by `.claude/skills/team-learning/`. Generated content; do not hand-edit.
+- `.claude/.locks/<project>-<session>.lease` — session leases written by the SessionStart hook and removed by SessionEnd. Used by the team-learning observer to avoid running while another session is active.
+
+## Reference example sessions
+
+- `sessions/_examples/<name>/` — committed end-to-end fixtures. The example folder name starts with `_` so the team-learning scanner skips it (it is illustrative, not a real history).
+- Live request sessions live in `sessions/<request_name>/` and should be `.gitignore`d unless the project explicitly tracks them.
 
 ## Worktree rules
 

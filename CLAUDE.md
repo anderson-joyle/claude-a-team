@@ -51,6 +51,8 @@ The probe phase exists to validate problem clarity before any implementation cod
 - `docs/contracts/stage-body-schemas.md`
 - `docs/runtime/gates-and-flow.md`
 - `docs/runtime/storage-layout.md`
+- `docs/runtime/context-budget.md`
+- `docs/runtime/skill-placement-policy.md`
 
 ## Skills
 
@@ -61,9 +63,27 @@ Use the matching skill for each creative stage:
 - `.claude/skills/architect/SKILL.md`
 - `.claude/skills/security/SKILL.md`
 - `.claude/skills/engineer/SKILL.md` — routes internally to `.claude/skills/diagnose/SKILL.md` (bugs) or TDD probe (features/improvements)
+- `.claude/skills/executor/SKILL.md` — runtime stage; applies probe and engineer artifacts deterministically
 - `.claude/skills/review/SKILL.md`
 - `.claude/skills/qa/SKILL.md`
 - `.claude/skills/release-readiness/SKILL.md`
+- `.claude/skills/team-learning/SKILL.md` — reflective; emits `team_knowledge` patterns at session end (fired by Stop hook)
+
+## Pipeline-enforcement hooks
+
+Hooks in `.claude/settings.json` enforce the team contract programmatically:
+
+- **PreToolUse** on `Edit | Write | MultiEdit` blocks edits to a session worktree until that session's `probe-gate-output.json` has `decision = pass | not_applicable`. This is what gives the Probe Gate teeth.
+- **SessionStart / SessionEnd** manage a project-scoped lease so concurrent sessions can be detected.
+- **Stop** fires `team-learning` asynchronously to extract cross-request patterns into `_team-knowledge/`.
+
+## Stage-quality sidecars
+
+Every creative stage may emit a `<stage>-quality.json` alongside its output (see `StageQualityBody` in stage-body-schemas.md). The sidecar records `evidence_completeness`, `context_budget_tokens`, `context_cost_tokens`, and `over_budget_reason`. It is additive metadata, not a replacement for the stage output.
+
+## Reference example sessions
+
+`sessions/_examples/` contains end-to-end fixture sessions (e.g. `bug-401-on-valid-token`) that demonstrate every artifact on the contract. Read them when the schemas alone are insufficient.
 
 ## Stage routing rules
 

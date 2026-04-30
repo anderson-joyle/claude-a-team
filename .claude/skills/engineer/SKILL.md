@@ -155,6 +155,16 @@ The Probe Gate has passed (`gate_decision = "pass"` or `"not_applicable"`) and p
 - Save as `engineer-output.json`
 - Preserve `request_id`, `schema_version`, and relevant `parent_artifact_ids`
 
+### Handoff to the Executor
+
+After `engineer-output.json` is written, the Executor (`.claude/skills/executor/SKILL.md`) consumes it. The Executor will:
+
+- Apply each `planned_changes[*]` to the worktree for the matching `repo_root_id`.
+- Run each `execution_handoff.test_commands[*]` and capture exit codes, stdout, and stderr to `logs/`.
+- Write `execution-results.json` (`ExecutionResultsBody`).
+
+The Engineer must therefore make `planned_changes` and `test_commands` complete and unambiguous. The Executor will not interpret intent or fill gaps — if a path is invalid or a patch context-mismatches, it records `failed` and reports.
+
 ---
 
 ## Working style (all phases)

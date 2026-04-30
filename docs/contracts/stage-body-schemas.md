@@ -412,3 +412,61 @@ Rules:
   "recommendation": "ship | hold | reject"
 }
 ```
+
+## StageQualityBody
+
+A small sidecar artifact written alongside any creative stage output (intake, pm, architect, security, engineer, review, qa, release_readiness). Save as `<stage>-quality.json` (e.g. `pm-quality.json`). Set `artifact_type = "stage_quality"` in the envelope. The `parent_artifact_ids` array must contain exactly the artifact this report describes.
+
+```json
+{
+  "stage": "intake | pm | architect | security | engineer | review | qa | release_readiness",
+  "phase": "string | null",
+  "described_artifact_id": "string",
+  "evidence_completeness": "none | partial | complete",
+  "blocking_questions_count": "number",
+  "assumptions_count": "number",
+  "context_budget_tokens": "number | null",
+  "context_cost_tokens": {
+    "input": "number | null",
+    "cached_input": "number | null",
+    "output": "number | null",
+    "total": "number | null"
+  },
+  "over_budget_reason": "string | null",
+  "duration_ms": "number | null",
+  "notes": ["string", "..."]
+}
+```
+
+Rules:
+- `described_artifact_id` must equal the `artifact_id` of the stage output this quality record describes.
+- `phase` is required for stages with phases (e.g. engineer: `"probe"` or `"impl"`).
+- `over_budget_reason` is required when `context_cost_tokens.total` exceeds `context_budget_tokens`. Otherwise it must be `null`.
+- `evidence_completeness = "none"` is permitted only for stages that legitimately need no evidence (e.g. intake on a fresh CLI request) and must be justified in `notes`.
+- This artifact must never replace a stage output. It is additive metadata, not a substitute for the body schemas above.
+
+See `/docs/runtime/context-budget.md` for stage-level budget defaults and how the executor enforces them.
+
+## TeamKnowledgeBody
+
+Produced by the team-learning skill at session end. Set `artifact_type = "team_knowledge"`. Save as `team-knowledge.json` under `_team-knowledge/<YYYY-MM>/<short-name>.json`.
+
+```json
+{
+  "scope": "repo | request_type | file_pattern",
+  "scope_value": "string",
+  "pattern_kind": "diagnosis_recurrence | tdd_signature | gate_failure | review_concern | qa_regression | other",
+  "pattern_summary": "string",
+  "supporting_request_ids": ["string", "..."],
+  "first_seen_at_utc": "YYYY-MM-DDTHH:MM:SSZ",
+  "last_seen_at_utc": "YYYY-MM-DDTHH:MM:SSZ",
+  "occurrence_count": "number",
+  "suggested_action": "string | null",
+  "consumers": ["intake | pm | architect | security | engineer | review | qa | release_readiness", "..."]
+}
+```
+
+Rules:
+- `supporting_request_ids` must reference at least 2 distinct requests. Single-occurrence observations are not patterns.
+- `consumers` lists the stages that should read this pattern when their inputs match `scope_value`. Empty `consumers` is invalid — every pattern must have at least one stage that benefits.
+- Producers must not invent supporting evidence. If only one request supports a pattern, do not write the artifact.

@@ -6,6 +6,8 @@ A-TEAM is a structured, multi-role AI workflow for software engineering work. Ea
 
 You invoke skills with `/intake`, `/pm`, `/engineer`, `/qa`, etc. The skills are self-contained: each one reads the contract docs and its predecessor artifacts, does its job, and produces a single JSON output. Claude Code runs the pipeline; you steer it.
 
+The pipeline has **teeth**: a `PreToolUse` hook blocks edits to a session's worktree until the Probe Gate has passed, the Executor is a real runtime with a Node runner that refuses to apply implementation changes without a passing gate, and a Stop hook fires the team-learning skill at session end so the team builds cross-request memory.
+
 ---
 
 ## Pipeline
@@ -37,10 +39,12 @@ Stages in `[brackets?]` are conditional — the routing rules below say when the
 | **Security** | Auth, secrets, external input, new deps, CI/CD changes | Threat surfaces, required controls, gate decision |
 | **Engineer (probe)** | After PM (and optional gates) | Diagnosis Probe (`bug`) or TDD Probe (`feature`/`improvement`) |
 | **Diagnose** | Called internally by Engineer for bugs | Feedback loop types, reproduce checklist, ranked hypotheses |
+| **Executor** | After Engineer (probe or impl) | Deterministic runtime; applies planned changes, runs commands, writes `ExecutionResultsBody` |
 | **Engineer (impl)** | After Probe Gate passes | Implementation plan, planned file changes, execution handoff |
 | **Review** | Medium/high risk, 2nd opinion requested, >3 files change | Concerns, recommended changes, approval status |
 | **QA** | After execution results exist | Verified acceptance criteria, findings, ship/hold recommendation |
 | **Release Readiness** | After QA, or when user asks if it's ready to ship | Blocking issues, rollback readiness, final recommendation |
+| **Team-Learning** | Fired at session end by the Stop hook | Cross-request `team_knowledge` patterns under `_team-knowledge/` |
 
 ---
 
@@ -73,6 +77,39 @@ Every skill produces a single JSON object wrapped in the artifact envelope:
 ```
 
 Artifacts are stored under `sessions/{request-name}/artifacts/`. The session folder doubles as the audit trail.
+
+Each creative stage may also emit a small `<stage>-quality.json` **sidecar** recording `evidence_completeness`, `context_budget_tokens`, `context_cost_tokens`, and an `over_budget_reason` if the stage exceeded its budget. The sidecar is additive metadata — it never replaces the stage output.
+
+A reference end-to-end fixture lives at `sessions/_examples/bug-401-on-valid-token/` showing every artifact in the chain, including a stage-quality sidecar and the Executor's probe and impl results.
+
+---
+
+## Pipeline-enforcement hooks
+
+`.claude/settings.json` registers four hooks that enforce the team contract programmatically:
+
+| Hook | Event | What it does |
+|---|---|---|
+| `pre:edit:probe-gate` | PreToolUse on `Edit | Write | MultiEdit` | Blocks edits to a session worktree until that session's `probe-gate-output.json` has `decision = pass | not_applicable`. This is what gives the Probe Gate teeth. |
+| `lifecycle:session-start:lease` | SessionStart | Writes a project-scoped lease so concurrent A-TEAM sessions can be detected. |
+| `lifecycle:session-end:lease` | SessionEnd | Removes the lease. |
+| `stop:session:team-learning` | Stop | Fires `team-learning/scan.mjs` detached so cross-request pattern extraction never blocks the user. |
+
+Edits to artifacts (`sessions/<*>/artifacts/...`), workflow docs, or skills are always allowed. Only worktree code edits are gated.
+
+---
+
+## Cross-request memory
+
+`_team-knowledge/<YYYY-MM>/<short-name>.json` holds typed `team_knowledge` patterns produced by the Team-Learning skill. A pattern requires at least two supporting requests; single-occurrence observations are discarded. Each pattern names the stages it should be read by, so a recurring diagnosis hint can flow into Intake or Engineer on the next matching request.
+
+This is what turns A-TEAM from a memoryless team of contractors into a team that remembers what it has learned.
+
+---
+
+## Per-stage context budget
+
+`docs/runtime/context-budget.md` defines a default token budget per stage (e.g. PM: 16k, Engineer-probe: 32k, Engineer-impl: 48k). Stages that legitimately need more must record an `over_budget_reason` in their quality sidecar. The pipeline does not refuse over-budget runs; it makes them visible so recurring overruns can be addressed.
 
 ---
 
@@ -149,8 +186,21 @@ claude-a-team/
 │   │   └── stage-body-schemas.md    ← body schema for every artifact type
 │   └── runtime/
 │       ├── gates-and-flow.md        ← gate triggers and Probe Gate decision tables
-│       └── storage-layout.md        ← session folder structure and artifact filenames
+│       ├── storage-layout.md        ← session folder structure and artifact filenames
+│       ├── context-budget.md        ← per-stage token defaults and reading patterns
+│       └── skill-placement-policy.md ← strict policy on what kinds of content live where
+├── sessions/
+│   └── _examples/
+│       └── bug-401-on-valid-token/   ← end-to-end fixture session for the contract
+├── _team-knowledge/                  ← generated team_knowledge patterns (per-month)
 └── .claude/
+    ├── settings.json                 ← hook configuration (probe-gate teeth, lifecycle, Stop)
+    ├── hooks/
+    │   ├── _lib.mjs                  ← shared helpers (lease, gate-status, session enumeration)
+    │   ├── pre-edit-gate.mjs         ← blocks worktree edits until Probe Gate passes
+    │   ├── session-start.mjs         ← writes session lease
+    │   ├── session-end.mjs           ← removes session lease
+    │   └── stop-team-learning.mjs    ← fires team-learning scan detached
     └── skills/
         ├── intake/
         ├── pm/
@@ -158,9 +208,11 @@ claude-a-team/
         ├── security/
         ├── engineer/
         ├── diagnose/                 ← Diagnosis Probe methodology (called by engineer)
+        ├── executor/                 ← runtime stage; SKILL.md + Node runner (run.mjs)
         ├── review/
         ├── qa/
-        └── release-readiness/
+        ├── release-readiness/
+        └── team-learning/            ← reflective stage; SKILL.md + scanner (scan.mjs)
 ```
 
 ---
@@ -172,3 +224,7 @@ claude-a-team/
 - **Model-neutral.** The artifact format includes `producer` metadata so the pipeline can mix Claude, GPT, Codex, or non-LLM runtimes and still trace which model produced what.
 - **Probe before implementation.** The Probe Gate enforces that bugs are reproducible and features are test-defined before any code is written. This prevents the common failure mode of implementing against a misunderstood problem.
 - **Hard stops over silent progress.** Blocking questions, missing evidence, and failed gates surface explicitly. The pipeline does not guess or skip ahead.
+- **Gates with teeth.** The Probe Gate is enforced by a `PreToolUse` hook, not just convention. Editing a session's worktree before the gate passes is physically blocked.
+- **A team that remembers.** The Team-Learning skill scans completed sessions at session end and emits typed `team_knowledge` patterns that future stages can read. Patterns require at least two supporting requests, so the team's institutional memory is conservative by design.
+- **Context as a zero-sum resource.** Each stage operates under a default token budget; over-budget runs must justify themselves in the quality sidecar. This is what keeps a long pipeline from spending its entire window in the first stage.
+- **Strict skill-placement policy.** The skill catalog stays small on purpose. Domain skills, language-specific reviewers, and proactive agent-routing patterns are explicitly out of scope — they would dissolve the team into a marketplace of contractors.

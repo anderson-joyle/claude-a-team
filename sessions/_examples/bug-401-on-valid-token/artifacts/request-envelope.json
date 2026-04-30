@@ -1,0 +1,42 @@
+{
+  "schema_version": "2.0",
+  "artifact_type": "request_envelope",
+  "artifact_id": "request_envelope-001",
+  "request_id": "req-2026-04-30-401-token",
+  "producer": {
+    "role": "intake",
+    "model_provider": "anthropic",
+    "model_name": "claude-opus-4-7",
+    "runtime_name": "claude-code"
+  },
+  "created_at_utc": "2026-04-30T14:00:05Z",
+  "parent_artifact_ids": [],
+  "confidence": "high",
+  "body": {
+    "request_title": "Login returns 401 with valid token after Firefox refresh",
+    "request_text": "After signing in to the dashboard and pressing F5 in Firefox 131, the next API request returns 401 even though the bearer token in localStorage has not expired. Chrome works. Repros every time on a fresh profile.",
+    "request_source": {
+      "kind": "github_issue",
+      "id": "1842",
+      "uri": "https://example.invalid/repo/web/issues/1842"
+    },
+    "tracking_refs": ["GH#1842"],
+    "repo_roots": [
+      {
+        "repo_root_id": "web",
+        "absolute_path": "/example/repo/web"
+      }
+    ],
+    "evidence_items": [
+      {
+        "evidence_id": "EV-1",
+        "kind": "log",
+        "original_name": "har-export.har",
+        "stored_path": "evidence/har-export.har",
+        "description": "HAR export from a Firefox session showing 401 on /api/me after refresh"
+      }
+    ],
+    "user_constraints": [],
+    "requested_outputs": ["fix", "regression test"]
+  }
+}

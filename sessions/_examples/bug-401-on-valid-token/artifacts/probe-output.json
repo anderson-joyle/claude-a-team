@@ -1,0 +1,57 @@
+{
+  "schema_version": "2.0",
+  "artifact_type": "probe_output",
+  "artifact_id": "probe_output-001",
+  "request_id": "req-2026-04-30-401-token",
+  "producer": {
+    "role": "engineer",
+    "model_provider": "anthropic",
+    "model_name": "claude-opus-4-7",
+    "runtime_name": "claude-code"
+  },
+  "created_at_utc": "2026-04-30T14:03:40Z",
+  "parent_artifact_ids": ["pm_output-001"],
+  "confidence": "high",
+  "body": {
+    "probe_mode": "diagnosis",
+    "probe_summary": "Built a Playwright headless-firefox harness that signs in, refreshes, and asserts /api/me returns 200. Failure reproduces every run.",
+    "confidence_in_reproduction": "high",
+    "questions_for_user": [],
+    "assumptions": ["Token in localStorage at refresh time matches what the server issued."],
+    "diagnosis": {
+      "feedback_loop_type": "headless_browser",
+      "feedback_loop_description": "Playwright firefox launches the dashboard, signs in via mocked SSO, hard-refreshes, and asserts /api/me returns 200. The harness fails reliably with 401.",
+      "reproduction_confirmed": true,
+      "reproduction_rate": "10/10",
+      "ranked_hypotheses": [
+        {
+          "id": "H-1",
+          "rank": 1,
+          "statement": "After refresh, the in-memory auth store is empty for one tick before localStorage rehydration. The interceptor reads from the in-memory store and sends an empty Authorization header.",
+          "prediction": "If H-1 is correct, then awaiting rehydration before the first request after refresh will make the bug disappear; logging the header value at request time will show an empty string."
+        },
+        {
+          "id": "H-2",
+          "rank": 2,
+          "statement": "Firefox's restored localStorage on refresh occurs after the dashboard's first XHR fires; Chrome restores it earlier.",
+          "prediction": "If H-2 is correct, then logging Date.now() at localStorage read vs first XHR start in both browsers will show Firefox reads happening after the first XHR."
+        },
+        {
+          "id": "H-3",
+          "rank": 3,
+          "statement": "An axios interceptor mutates the headers object across requests, and a Firefox-specific request retry strips the header before the second attempt.",
+          "prediction": "If H-3 is correct, then disabling the retry interceptor will make the bug disappear; capturing both attempts will show different Authorization headers."
+        }
+      ],
+      "probe_commands": [
+        {
+          "id": "CMD-1",
+          "command": "npx playwright test e2e/auth/firefox-refresh.probe.spec.ts --reporter=line",
+          "purpose": "Run the probe harness in headless Firefox to confirm the 401 reproduces.",
+          "linked_test_scenarios": []
+        }
+      ]
+    },
+    "tdd": null
+  }
+}

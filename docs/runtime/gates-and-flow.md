@@ -90,3 +90,15 @@ When the Probe Gate suspends the pipeline:
 5. Persist every stage artifact before invoking the next stage.
 6. If multiple models are used, preserve `producer` metadata for each artifact.
 7. The Probe Gate is a hard stop — never advance past it silently on a non-pass decision.
+
+## Hook-enforced gating
+
+The Probe Gate is enforced by both convention and a `PreToolUse` hook (`.claude/hooks/pre-edit-gate.mjs`). The hook blocks `Edit`, `Write`, and `MultiEdit` against any file inside a session worktree (`sessions/<*>/worktree/...`) when that session has a `probe-output.json` but no passing `probe-gate-output.json`.
+
+What this means in practice:
+
+- Edits to artifacts (`sessions/<*>/artifacts/...`), evidence (`sessions/<*>/evidence/...`), workflow docs (`docs/...`), or skills (`.claude/skills/...`) are always allowed.
+- Edits to a session worktree before the gate passes are blocked with an explanatory error. The Engineer must instead complete probe → executor → gate before any code edits land.
+- The hook fails open on internal errors (it never blocks because of a hook bug). The contract is the source of truth; the hook is a safety net.
+
+The Executor in implementation mode applies its planned changes through Node `fs` calls, not through the `Edit`/`Write` tools, so it bypasses the hook by design — but only because it has already verified the gate decision itself.

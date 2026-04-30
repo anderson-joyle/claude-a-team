@@ -1,0 +1,84 @@
+{
+  "schema_version": "2.0",
+  "artifact_type": "engineer_output",
+  "artifact_id": "engineer_output-001",
+  "request_id": "req-2026-04-30-401-token",
+  "producer": {
+    "role": "engineer",
+    "model_provider": "anthropic",
+    "model_name": "claude-opus-4-7",
+    "runtime_name": "claude-code"
+  },
+  "created_at_utc": "2026-04-30T14:08:20Z",
+  "parent_artifact_ids": ["probe_gate_output-001", "probe_output-001", "pm_output-001"],
+  "confidence": "high",
+  "body": {
+    "technical_summary": "Apply H-1: the auth interceptor reads from an in-memory store that is empty during the rehydration tick after refresh. Await rehydration before issuing the first request.",
+    "files_to_investigate": [
+      { "repo_root_id": "web", "path": "src/auth/interceptor.ts" },
+      { "repo_root_id": "web", "path": "src/auth/store.ts" }
+    ],
+    "implementation_plan": [
+      "step -> verify: add an explicit `await store.rehydrated` in the interceptor before reading the token; verify by re-running the probe harness.",
+      "step -> verify: add a regression test in firefox e2e suite; verify it fails on main and passes after the fix."
+    ],
+    "questions_for_user": [],
+    "assumptions": ["The auth store exposes a `rehydrated` promise; if not, the fix may need to expose one."],
+    "design_notes": ["Keep the await inside the interceptor only; do not change app-level boot order."],
+    "observability_changes": [],
+    "docs_changes": [],
+    "migration_steps": [],
+    "rollback_plan": ["Revert the single commit; behavior returns to pre-fix state."],
+    "planned_changes": [
+      {
+        "repo_root_id": "web",
+        "path": "src/auth/interceptor.ts",
+        "action": "modify",
+        "content_mode": "unified_diff",
+        "rationale": "Await rehydration so the Authorization header is non-empty after refresh.",
+        "linked_acceptance_criteria": ["AC-1", "AC-2", "AC-3"],
+        "content": "--- a/src/auth/interceptor.ts\n+++ b/src/auth/interceptor.ts\n@@\n-export async function attachAuth(req) {\n-  const token = store.token();\n+export async function attachAuth(req) {\n+  await store.rehydrated;\n+  const token = store.token();\n   if (token) req.headers.set('Authorization', `Bearer ${token}`);\n   return req;\n }\n"
+      },
+      {
+        "repo_root_id": "web",
+        "path": "e2e/auth/firefox-refresh.regression.spec.ts",
+        "action": "create",
+        "content_mode": "full_file",
+        "rationale": "Pin the fix with a CI-runnable regression test.",
+        "linked_acceptance_criteria": ["AC-1"],
+        "content": "import { expect, test } from '@playwright/test';\n\ntest('firefox: /api/me returns 200 immediately after refresh', async ({ page }) => {\n  await page.goto('/dashboard');\n  await page.evaluate(() => localStorage.setItem('auth.token', 'valid-test-token'));\n  await page.reload();\n  const res = await page.waitForResponse((r) => r.url().endsWith('/api/me'));\n  expect(res.status()).toBe(200);\n});\n"
+      }
+    ],
+    "execution_handoff": {
+      "code_change_summary": "Await store.rehydrated in the auth interceptor; add a Firefox regression test.",
+      "changed_files": [
+        { "repo_root_id": "web", "path": "src/auth/interceptor.ts" },
+        { "repo_root_id": "web", "path": "e2e/auth/firefox-refresh.regression.spec.ts" }
+      ],
+      "risk_areas": ["interceptor latency on first request; bounded by store rehydrate time (<10ms)"],
+      "test_scenarios": [
+        {
+          "id": "TS-1",
+          "statement": "After refresh in Firefox, /api/me returns 200 with valid token.",
+          "linked_acceptance_criteria": ["AC-1"],
+          "expected_result": "playwright test passes"
+        }
+      ],
+      "test_commands": [
+        {
+          "id": "CMD-T1",
+          "command": "npx playwright test e2e/auth/firefox-refresh.regression.spec.ts --reporter=line",
+          "purpose": "Run the regression test in headless Firefox.",
+          "linked_test_scenarios": ["TS-1"]
+        },
+        {
+          "id": "CMD-T2",
+          "command": "npx playwright test --project=chromium --reporter=line",
+          "purpose": "Confirm Chrome behavior unchanged (AC-2).",
+          "linked_test_scenarios": []
+        }
+      ],
+      "additional_manual_checks": []
+    }
+  }
+}

@@ -12,6 +12,12 @@
   "created_at_utc": "2026-04-30T14:01:10Z",
   "parent_artifact_ids": ["intake_output-001", "request_envelope-001"],
   "confidence": "high",
+  "context_cost_tokens": {
+    "input": 9120,
+    "cached_input": 6800,
+    "output": 1480,
+    "total": 10600
+  },
   "body": {
     "work_type": "bug",
     "problem_statement": "In Firefox, refreshing the dashboard after sign-in causes the next authenticated API call to return 401 even though the bearer token in localStorage is still valid. Chrome is unaffected.",

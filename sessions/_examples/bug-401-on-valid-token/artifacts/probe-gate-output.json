@@ -12,6 +12,12 @@
   "created_at_utc": "2026-04-30T14:05:10Z",
   "parent_artifact_ids": ["probe_output-001", "execution_results-probe-001"],
   "confidence": "high",
+  "context_cost_tokens": {
+    "input": 6840,
+    "cached_input": 5100,
+    "output": 410,
+    "total": 7250
+  },
   "body": {
     "probe_mode": "diagnosis",
     "gate_decision": {

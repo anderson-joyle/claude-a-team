@@ -12,6 +12,12 @@
   "created_at_utc": "2026-04-30T14:11:00Z",
   "parent_artifact_ids": ["engineer_output-001", "execution_results-impl-001"],
   "confidence": "high",
+  "context_cost_tokens": {
+    "input": 19420,
+    "cached_input": 14600,
+    "output": 1880,
+    "total": 21300
+  },
   "body": {
     "gate_decision": {
       "required": true,

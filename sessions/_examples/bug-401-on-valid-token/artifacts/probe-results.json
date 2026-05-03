@@ -12,6 +12,12 @@
   "created_at_utc": "2026-04-30T14:04:55Z",
   "parent_artifact_ids": ["probe_output-001"],
   "confidence": "high",
+  "context_cost_tokens": {
+    "input": null,
+    "cached_input": null,
+    "output": null,
+    "total": null
+  },
   "body": {
     "apply_status": "not_attempted",
     "applied_changes": [],

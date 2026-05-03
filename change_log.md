@@ -1,5 +1,30 @@
 # Change Log
 
+## 2026-05-03 — Move token cost onto the artifact envelope
+
+### What changed
+
+`context_cost_tokens` (input / cached_input / output / total) is now a top-level field on the **artifact envelope**, so every stage artifact carries its own token consumption directly. It was previously only on the `<stage>-quality.json` sidecar.
+
+The sidecar (`StageQualityBody`) keeps `context_budget_tokens` and `over_budget_reason` — those are stage-level constraints, not artifact properties. The over-budget rule now reads cost from the described artifact's envelope rather than from a duplicated copy on the sidecar.
+
+Deterministic producers (the executor) emit envelopes with `context_cost_tokens` fields set to `null`. Stages writing artifacts by hand may also leave the fields `null`, but the runtime that wraps a model call should populate them from the provider's response.
+
+### Files affected
+
+| File | Change |
+|---|---|
+| `docs/contracts/artifact-envelope.md` | Adds `context_cost_tokens` to the envelope and a rule explaining when it is `null` |
+| `docs/contracts/stage-body-schemas.md` | Removes `context_cost_tokens` from `StageQualityBody`; sidecar rule now references the envelope of the described artifact |
+| `docs/runtime/context-budget.md` | "Recording context cost" section rewritten to point cost at the envelope and budget/justification at the sidecar |
+| `CLAUDE.md` | Stage-quality-sidecars section updated to match |
+| `.claude/skills/executor/run.mjs` | `envelope()` helper emits `context_cost_tokens` with all fields `null` (executor is deterministic) |
+| `sessions/_examples/bug-401-on-valid-token/artifacts/*.json` | Every example envelope gains `context_cost_tokens`; `pm-quality.json` no longer carries the duplicated cost block |
+
+### Idea behind it
+
+Cost-of-production is a property of the artifact, not of a separate quality report. Putting it on the envelope means any consumer — pipeline gate, team-learning scanner, future cost dashboard — can read consumption per artifact without joining to a sidecar. The sidecar becomes the place where a stage records its budget and explains overruns; the envelope is the canonical record of what each producer actually spent.
+
 ## 2026-04-30 — Pipeline teeth, runtime executor, and cross-request memory
 
 ### What changed

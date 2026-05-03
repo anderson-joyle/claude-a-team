@@ -26,13 +26,13 @@ These defaults assume a 200k-token model and a request of moderate scope (one re
 
 ## Recording context cost
 
-Every creative stage emits a `<stage>-quality.json` sidecar with:
+Token cost lives on the **artifact envelope itself** (`context_cost_tokens.{input, cached_input, output, total}`), so every artifact carries its own consumption. The stage-quality sidecar (`<stage>-quality.json`) records the budget and any over-budget justification:
 
-- `context_budget_tokens` — the budget assumed for the stage
-- `context_cost_tokens.{input, cached_input, output, total}` — what the stage actually used
-- `over_budget_reason` — required when `total > context_budget_tokens`, otherwise null
+- envelope `context_cost_tokens` — what the producer actually used to produce the artifact
+- sidecar `context_budget_tokens` — the budget assumed for the stage
+- sidecar `over_budget_reason` — required when the envelope `context_cost_tokens.total` of the described artifact exceeds `context_budget_tokens`, otherwise null
 
-Tools that wrap the stage call (orchestrator, executor) populate the cost numbers from the model provider's response. Stages writing artifacts by hand may leave `context_cost_tokens` fields null but must still emit the quality sidecar.
+Tools that wrap the stage call (orchestrator, runtime) populate the envelope cost numbers from the model provider's response. Stages writing artifacts by hand may leave envelope `context_cost_tokens` fields null but must still emit the quality sidecar. Deterministic producers (e.g. the executor) leave the envelope cost fields null.
 
 ## Reading patterns
 

@@ -12,6 +12,12 @@
   "created_at_utc": "2026-04-30T14:01:11Z",
   "parent_artifact_ids": ["pm_output-001"],
   "confidence": "high",
+  "context_cost_tokens": {
+    "input": 1240,
+    "cached_input": 980,
+    "output": 220,
+    "total": 1460
+  },
   "body": {
     "stage": "pm",
     "phase": null,
@@ -20,14 +26,8 @@
     "blocking_questions_count": 0,
     "assumptions_count": 1,
     "context_budget_tokens": 16000,
-    "context_cost_tokens": {
-      "input": 9120,
-      "cached_input": 6800,
-      "output": 1480,
-      "total": 10600
-    },
     "over_budget_reason": null,
     "duration_ms": 3210,
-    "notes": ["HAR file referenced by locator only; not quoted into prompt."]
+    "notes": ["HAR file referenced by locator only; not quoted into prompt.", "described artifact pm_output-001 reports context_cost_tokens.total=10600 on its envelope; under the 16000 budget."]
   }
 }

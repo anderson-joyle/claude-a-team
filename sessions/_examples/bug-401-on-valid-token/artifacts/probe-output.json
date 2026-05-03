@@ -12,6 +12,12 @@
   "created_at_utc": "2026-04-30T14:03:40Z",
   "parent_artifact_ids": ["pm_output-001"],
   "confidence": "high",
+  "context_cost_tokens": {
+    "input": 18450,
+    "cached_input": 12200,
+    "output": 2840,
+    "total": 21290
+  },
   "body": {
     "probe_mode": "diagnosis",
     "probe_summary": "Built a Playwright headless-firefox harness that signs in, refreshes, and asserts /api/me returns 200. Failure reproduces every run.",

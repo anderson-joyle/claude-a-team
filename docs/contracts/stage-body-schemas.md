@@ -426,12 +426,6 @@ A small sidecar artifact written alongside any creative stage output (intake, pm
   "blocking_questions_count": "number",
   "assumptions_count": "number",
   "context_budget_tokens": "number | null",
-  "context_cost_tokens": {
-    "input": "number | null",
-    "cached_input": "number | null",
-    "output": "number | null",
-    "total": "number | null"
-  },
   "over_budget_reason": "string | null",
   "duration_ms": "number | null",
   "notes": ["string", "..."]
@@ -439,9 +433,9 @@ A small sidecar artifact written alongside any creative stage output (intake, pm
 ```
 
 Rules:
-- `described_artifact_id` must equal the `artifact_id` of the stage output this quality record describes.
+- `described_artifact_id` must equal the `artifact_id` of the stage output this quality record describes. Read that artifact's envelope `context_cost_tokens` to compare against `context_budget_tokens`.
 - `phase` is required for stages with phases (e.g. engineer: `"probe"` or `"impl"`).
-- `over_budget_reason` is required when `context_cost_tokens.total` exceeds `context_budget_tokens`. Otherwise it must be `null`.
+- `over_budget_reason` is required when the described artifact's envelope `context_cost_tokens.total` exceeds `context_budget_tokens`. Otherwise it must be `null`.
 - `evidence_completeness = "none"` is permitted only for stages that legitimately need no evidence (e.g. intake on a fresh CLI request) and must be justified in `notes`.
 - This artifact must never replace a stage output. It is additive metadata, not a substitute for the body schemas above.
 

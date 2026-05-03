@@ -79,7 +79,7 @@ Hooks in `.claude/settings.json` enforce the team contract programmatically:
 
 ## Stage-quality sidecars
 
-Every creative stage may emit a `<stage>-quality.json` alongside its output (see `StageQualityBody` in stage-body-schemas.md). The sidecar records `evidence_completeness`, `context_budget_tokens`, `context_cost_tokens`, and `over_budget_reason`. It is additive metadata, not a replacement for the stage output.
+Every creative stage may emit a `<stage>-quality.json` alongside its output (see `StageQualityBody` in stage-body-schemas.md). The sidecar records `evidence_completeness`, `context_budget_tokens`, and `over_budget_reason`. Token consumption itself lives on the artifact envelope as `context_cost_tokens` (see `artifact-envelope.md`); the sidecar compares that envelope cost against the stage budget. Sidecars are additive metadata, not a replacement for the stage output.
 
 ## Reference example sessions
 

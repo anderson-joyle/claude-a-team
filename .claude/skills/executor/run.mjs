@@ -58,6 +58,12 @@ function envelope({ artifact_type, request_id, parent_ids, body }) {
     created_at_utc: nowUtc(),
     parent_artifact_ids: parent_ids,
     confidence: "high",
+    context_cost_tokens: {
+      input: null,
+      cached_input: null,
+      output: null,
+      total: null,
+    },
     body,
   };
 }

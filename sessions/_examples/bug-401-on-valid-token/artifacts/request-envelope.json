@@ -12,6 +12,12 @@
   "created_at_utc": "2026-04-30T14:00:05Z",
   "parent_artifact_ids": [],
   "confidence": "high",
+  "context_cost_tokens": {
+    "input": 1820,
+    "cached_input": 0,
+    "output": 540,
+    "total": 2360
+  },
   "body": {
     "request_title": "Login returns 401 with valid token after Firefox refresh",
     "request_text": "After signing in to the dashboard and pressing F5 in Firefox 131, the next API request returns 401 even though the bearer token in localStorage has not expired. Chrome works. Repros every time on a fresh profile.",

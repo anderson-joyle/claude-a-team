@@ -75,13 +75,14 @@ Every skill produces a single JSON object wrapped in the artifact envelope:
   "created_at_utc": "2026-04-29T10:00:00Z",
   "parent_artifact_ids": ["intake-001"],
   "confidence": "high",
+  "context_cost_tokens": { "input": 9120, "cached_input": 6800, "output": 1480, "total": 10600 },
   "body": { ... }
 }
 ```
 
-Artifacts are stored under `sessions/{request-name}/artifacts/`. The session folder doubles as the audit trail.
+Artifacts are stored under `sessions/{request-name}/artifacts/`. The session folder doubles as the audit trail. The envelope `context_cost_tokens` block records what the producer spent to produce this artifact (`null` for deterministic producers like the executor).
 
-Each creative stage may also emit a small `<stage>-quality.json` **sidecar** recording `evidence_completeness`, `context_budget_tokens`, `context_cost_tokens`, and an `over_budget_reason` if the stage exceeded its budget. The sidecar is additive metadata — it never replaces the stage output.
+Each creative stage may also emit a small `<stage>-quality.json` **sidecar** recording `evidence_completeness`, `context_budget_tokens`, and an `over_budget_reason` if the stage's described artifact exceeded the budget. The sidecar is additive metadata — it never replaces the stage output.
 
 A reference end-to-end fixture lives at `sessions/_examples/bug-401-on-valid-token/` showing every artifact in the chain, including a stage-quality sidecar and the Executor's probe and impl results.
 

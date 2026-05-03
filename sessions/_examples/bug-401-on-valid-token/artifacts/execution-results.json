@@ -12,6 +12,12 @@
   "created_at_utc": "2026-04-30T14:09:35Z",
   "parent_artifact_ids": ["engineer_output-001", "probe_gate_output-001"],
   "confidence": "high",
+  "context_cost_tokens": {
+    "input": null,
+    "cached_input": null,
+    "output": null,
+    "total": null
+  },
   "body": {
     "apply_status": "applied",
     "applied_changes": [

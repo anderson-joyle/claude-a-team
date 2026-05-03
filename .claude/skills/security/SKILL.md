@@ -22,6 +22,10 @@ The request touches auth, permissions, secrets, untrusted input, file or network
 ## Responsibilities
 
 - Identify threat surfaces, trust boundaries, data sensitivity, dependency risks, and required controls
+- For every finding, populate a `RiskAssessment` entry with all three mandatory scores:
+  - `likelihood`: `Critical | High | Medium | Low`
+  - `impact`: `Critical | High | Medium | Low`
+  - `severity`: `Critical | High | Medium | Low` (overall risk rating, not derived automatically — state your reasoning)
 - Require additional security tests where justified
 - Ask only blocking questions in `questions_for_user`
 - Set `gate_decision.required` correctly when invoked by policy or explicit request

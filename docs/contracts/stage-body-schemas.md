@@ -109,9 +109,13 @@ Rules:
   "duration_ms": 1234,
   "stdout_path": "string | null",
   "stderr_path": "string | null",
-  "blocked_reason": "string | null"
+  "blocked_reason": "string | null",
+  "failure_report": "FailureReport | null"
 }
 ```
+
+Rules:
+- `failure_report` must be populated when `exit_code` is non-zero or `attempted = false` due to a runtime error. It must be `null` on success (`exit_code = 0`).
 
 ## GateDecision
 
@@ -187,6 +191,27 @@ Rules:
 }
 ```
 
+## RiskAssessment
+
+```json
+{
+  "id": "RA-1",
+  "finding": "string",
+  "threat_surface": "string | null",
+  "likelihood": "Critical | High | Medium | Low",
+  "impact": "Critical | High | Medium | Low",
+  "severity": "Critical | High | Medium | Low",
+  "severity_rationale": "string",
+  "required_control": "string | null",
+  "required_security_test": "string | null"
+}
+```
+
+Rules:
+- All three score fields (`likelihood`, `impact`, `severity`) are mandatory on every entry.
+- `severity` is the overall risk rating. It is **not** derived automatically from `likelihood` × `impact` — state the reasoning explicitly in `severity_rationale`.
+- `required_control` and `required_security_test` are nullable but must be populated when a control or test is warranted.
+
 ## SecurityOutputBody
 
 ```json
@@ -196,14 +221,18 @@ Rules:
   "threat_surfaces": ["string", "..."],
   "trust_boundaries": ["string", "..."],
   "data_sensitivity": ["string", "..."],
-  "required_controls": ["string", "..."],
-  "required_security_tests": ["string", "..."],
+  "risk_assessments": [RiskAssessment],
   "dependency_risks": ["string", "..."],
   "questions_for_user": ["string", "..."],
   "risks": ["string", "..."],
   "evidence_refs": [EvidenceRef]
 }
 ```
+
+Rules:
+- `risk_assessments` replaces the flat `required_controls` and `required_security_tests` string arrays. Controls and tests are now carried inside each `RiskAssessment` entry.
+- Every identified threat surface must have at least one corresponding `RiskAssessment` entry.
+- An empty `risk_assessments` array is only valid when `gate_decision.decision = "not_applicable"`.
 
 ## ProbeOutputBody
 
@@ -340,6 +369,25 @@ Rules:
 }
 ```
 
+## ReviewFinding
+
+```json
+{
+  "id": "RF-1",
+  "severity": "Critical | High | Medium | Low",
+  "category": "correctness | completeness | testability | maintainability | risk_coverage | unrelated_churn | other",
+  "location": "string | null",
+  "rationale": "string",
+  "fix_suggestion": "string"
+}
+```
+
+Rules:
+- `severity` is mandatory on every entry.
+- `rationale` must be grounded in the upstream artifacts — no free-floating opinions.
+- `fix_suggestion` must describe the minimum change that resolves the finding, not a rewrite.
+- `location` is a file path or artifact field reference (e.g. `src/auth.ts:42` or `planned_changes[2]`); nullable when the finding is cross-cutting.
+
 ## ReviewOutputBody
 
 ```json
@@ -347,13 +395,34 @@ Rules:
   "gate_decision": "GateDecision",
   "review_scope_summary": "string",
   "strengths": ["string", "..."],
-  "concerns": ["string", "..."],
+  "review_findings": [ReviewFinding],
   "missed_files_or_cases": ["string", "..."],
-  "recommended_changes": ["string", "..."],
   "approval_status": "approved | approved_with_notes | changes_requested",
   "evidence_refs": [EvidenceRef]
 }
 ```
+
+Rules:
+- `review_findings` replaces the flat `concerns` and `recommended_changes` string arrays. Rationale and fix suggestion are now carried inside each `ReviewFinding` entry.
+- `approval_status = "changes_requested"` requires at least one `ReviewFinding` with `severity = "Critical"` or `"High"`.
+- `approval_status = "approved"` requires `review_findings` to be empty or contain only `"Low"` severity entries.
+
+## FailureReport
+
+```json
+{
+  "failure_type": "patch_apply | file_write | command_nonzero | command_timeout | missing_input | gate_not_passed | path_invalid",
+  "context": "string",
+  "affected_artifact": "string",
+  "suggested_next_step": "string"
+}
+```
+
+Rules:
+- `context` must be the exact failure message as emitted by the tool or shell — do not paraphrase (e.g. `git apply: Context mismatch near line 5`, `tsc: error TS2307: Cannot find module 'X'`, `exit code 1: ENOENT /path/to/file`).
+- `affected_artifact` is the `planned_changes` repo-relative path or the `command_id` that failed.
+- `suggested_next_step` is a single terse sentence addressed to the upstream Engineer explaining what to check or change.
+- A `FailureReport` is **required** on every `status: "failed"` entry — its absence is a contract violation.
 
 ## ExecutionResultsBody
 
@@ -366,7 +435,8 @@ Rules:
       "path": "string",
       "action": "create | modify | delete",
       "status": "applied | failed | skipped",
-      "message": "string"
+      "message": "string",
+      "failure_report": "FailureReport | null"
     }
   ],
   "commands_attempted": [ExecutedCommandResult],
@@ -378,6 +448,9 @@ Rules:
   "notes": ["string", "..."]
 }
 ```
+
+Rules:
+- `failure_report` on an `applied_changes` entry must be populated when `status = "failed"` and must be `null` when `status = "applied"` or `"skipped"`.
 
 ## QAOutputBody
 

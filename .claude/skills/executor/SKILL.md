@@ -85,6 +85,19 @@ The Executor refuses to run if any required input is missing. It writes a `not_a
 
 ---
 
+## Failure reporting
+
+When any step fails — a file change, a patch application, or a test command — populate a `FailureReport` object on the affected result:
+
+- `failure_type`: one of `patch_apply | file_write | command_nonzero | command_timeout | missing_input | gate_not_passed | path_invalid`
+- `context`: the exact failure message as emitted by the tool or shell (e.g. `git apply: Context mismatch near line 5`, `tsc: error TS2307: Cannot find module 'X'`, `exit code 1: ENOENT /path/to/file`)
+- `affected_artifact`: the `planned_changes` path or `command_id` that failed
+- `suggested_next_step`: one terse sentence for the upstream Engineer (e.g. `Re-check patch context around line 5 — the target file may have drifted since the diff was produced.`)
+
+The `FailureReport` is recorded alongside the existing `status: failed` field — it does not replace it. A failure with no `FailureReport` is a contract violation.
+
+---
+
 ## You must not
 
 - Modify, summarize, or "improve" the upstream artifact's content.
@@ -94,6 +107,7 @@ The Executor refuses to run if any required input is missing. It writes a `not_a
 - Run commands the artifact did not list.
 - Reformat output. The runner's job is to record exit codes and raw streams, not to interpret them.
 - Continue running test commands after a planned-change application failure unless the artifact explicitly authorizes it (`execution_handoff.run_tests_on_partial_apply = true` is reserved for future use; today the answer is always stop and report).
+- Emit a `failed` result without a `FailureReport`.
 
 ---
 

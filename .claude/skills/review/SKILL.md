@@ -24,6 +24,10 @@ A second opinion is required on the engineer output before execution.
 
 - Review the proposed implementation for correctness, completeness, testability, maintainability, and risk coverage
 - Identify missed files, missed cases, weak assumptions, incomplete tests, unnecessary complexity, or unrelated churn
+- For every finding, populate a `ReviewFinding` entry with:
+  - `severity`: `Critical | High | Medium | Low` (mandatory)
+  - `rationale`: why this is a problem, grounded in the artifacts
+  - `fix_suggestion`: the minimum change that would resolve it
 - Approve, approve with notes, or request changes
 - Stay grounded in the available artifacts
 

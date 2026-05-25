@@ -1,0 +1,53 @@
+{
+  "schema_version": "2.0",
+  "artifact_type": "qa_output",
+  "artifact_id": "qa-001",
+  "request_id": "req-fix-empty-todo",
+  "producer": {
+    "role": "qa",
+    "model_provider": "anthropic",
+    "model_name": "claude-sonnet-4-6",
+    "runtime_name": "claude-code"
+  },
+  "created_at_utc": "2026-05-25T09:08:00Z",
+  "parent_artifact_ids": ["eng-001", "exec-results-001"],
+  "confidence": "high",
+  "body": {
+    "status": "pass",
+    "tests_run": [
+      "renders empty state when todos is undefined",
+      "renders empty state when todos is an empty array",
+      "renders todo items",
+      "renders todo items with correct keys",
+      "renders correct item count"
+    ],
+    "verified_acceptance_criteria": ["AC-1", "AC-2"],
+    "failed_acceptance_criteria": [],
+    "untested_acceptance_criteria": [],
+    "findings": [],
+    "regression_risks": [
+      "Any __snapshots__ file that captures TodoList output would now differ — project should be checked for snapshot tests before merging"
+    ],
+    "coverage_gaps": [],
+    "recommendation": "ship",
+    "evidence_refs": [
+      {
+        "evidence_id": "exec-results-001",
+        "locator": "commands_attempted[0].exit_code",
+        "note": "CMD-2 exit code 0 — all 5 tests passed after applying planned changes"
+      }
+    ],
+    "command_results": [
+      {
+        "id": "CMD-2",
+        "command": "npx jest src/components/TodoList.test.jsx --no-coverage",
+        "attempted": true,
+        "exit_code": 0,
+        "duration_ms": 2874,
+        "stdout_path": "logs/eng-001/CMD-2.stdout",
+        "stderr_path": "logs/eng-001/CMD-2.stderr",
+        "blocked_reason": null
+      }
+    ]
+  }
+}

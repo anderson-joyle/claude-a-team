@@ -1,0 +1,13 @@
+{
+  "session_id": "fix-empty-todo-list",
+  "session_folder": "fix-empty-todo-list",
+  "created_at_utc": "2026-05-25T09:00:00Z",
+  "request_title": "Fix TypeError when loading empty todo list",
+  "repo_roots": [
+    {
+      "repo_root_id": "repo-todo-app",
+      "absolute_path": "/home/user/projects/todo-app",
+      "worktree_path": "sessions/_examples/fix-empty-todo-list/worktree"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "schema_version": "2.0",
+  "artifact_type": "pm_output",
+  "artifact_id": "pm-001",
+  "request_id": "req-fix-empty-todo",
+  "producer": {
+    "role": "pm",
+    "model_provider": "anthropic",
+    "model_name": "claude-sonnet-4-6",
+    "runtime_name": "claude-code"
+  },
+  "created_at_utc": "2026-05-25T09:02:00Z",
+  "parent_artifact_ids": ["intake-001"],
+  "confidence": "high",
+  "body": {
+    "work_type": "bug",
+    "problem_statement": "The TodoList component calls .map() on the todos prop without guarding against undefined or an empty array, causing a TypeError crash for any user with no todos.",
+    "summary": "Add a null/empty check to the TodoList component so users with no todos see an empty state message instead of a crash.",
+    "current_behavior": "Navigating to /todos when the user has no todos throws: TypeError: Cannot read properties of undefined (reading 'map'). The page crashes and shows a blank error screen.",
+    "expected_behavior": "When the user has no todos, the /todos page renders: 'No todos yet. Create your first one!'",
+    "user_impact": "All users with empty todo lists are unable to use the todos page.",
+    "business_impact": "New users hit this on first login — the first experience after sign-up is a crash.",
+    "scope_in": [
+      "Add null/empty guard to TodoList component",
+      "Render empty state message when todos is undefined or empty"
+    ],
+    "scope_out": [
+      "Redesigning the empty state UI",
+      "Fixing how the parent fetches or passes todos"
+    ],
+    "constraints": [
+      "Empty state text must match: 'No todos yet. Create your first one!'"
+    ],
+    "non_functional_requirements": [],
+    "acceptance_criteria": [
+      {
+        "id": "AC-1",
+        "statement": "Navigating to /todos with an empty or undefined todos list renders 'No todos yet. Create your first one!' without throwing an error.",
+        "priority": "must",
+        "verification_hint": "Render TodoList with todos={undefined} and todos={[]} — both must show the empty state message."
+      },
+      {
+        "id": "AC-2",
+        "statement": "Navigating to /todos with one or more todos renders the list correctly.",
+        "priority": "must",
+        "verification_hint": "Existing render test still passes."
+      }
+    ],
+    "priority": "high",
+    "questions_for_user": [],
+    "assumptions": [
+      "The component receiving undefined todos is TodoList in src/components/TodoList.jsx",
+      "The empty state message text is fixed as specified"
+    ],
+    "unknowns": [],
+    "risks": [],
+    "evidence_refs": []
+  }
+}

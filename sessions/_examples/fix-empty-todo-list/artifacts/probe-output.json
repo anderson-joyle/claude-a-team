@@ -1,0 +1,60 @@
+{
+  "schema_version": "2.0",
+  "artifact_type": "probe_output",
+  "artifact_id": "probe-001",
+  "request_id": "req-fix-empty-todo",
+  "producer": {
+    "role": "engineer",
+    "model_provider": "anthropic",
+    "model_name": "claude-sonnet-4-6",
+    "runtime_name": "claude-code"
+  },
+  "created_at_utc": "2026-05-25T09:03:00Z",
+  "parent_artifact_ids": ["pm-001"],
+  "confidence": "high",
+  "body": {
+    "probe_mode": "diagnosis",
+    "probe_summary": "Reproduced the TypeError by rendering TodoList with todos=undefined in a Jest test. Feedback loop is a failing unit test — fast and deterministic. Three ranked falsifiable hypotheses produced.",
+    "confidence_in_reproduction": "high",
+    "questions_for_user": [],
+    "assumptions": [
+      "Tests run with Jest + React Testing Library",
+      "Component is at src/components/TodoList.jsx"
+    ],
+    "diagnosis": {
+      "feedback_loop_type": "failing_test",
+      "feedback_loop_description": "Jest unit test that renders <TodoList todos={undefined} /> and asserts the empty state message is present. Currently exits 1 with: TypeError: Cannot read properties of undefined (reading 'map') at TodoList (src/components/TodoList.jsx:6:12).",
+      "reproduction_confirmed": true,
+      "reproduction_rate": null,
+      "ranked_hypotheses": [
+        {
+          "id": "H-1",
+          "rank": 1,
+          "statement": "The todos prop has no default value. When the parent passes nothing, todos arrives as undefined and .map() is called with no guard.",
+          "prediction": "If we add todos=[] as a default parameter, the TypeError disappears and the map runs on an empty array — rendering nothing. Adding the empty-state early return then satisfies AC-1."
+        },
+        {
+          "id": "H-2",
+          "rank": 2,
+          "statement": "The parent component renders TodoList before the fetch resolves, passing undefined during the loading window.",
+          "prediction": "If we add a loading guard in the parent before rendering TodoList, the crash disappears — but this requires a change in a different file and does not handle the truly-empty-list case."
+        },
+        {
+          "id": "H-3",
+          "rank": 3,
+          "statement": "The API response shape changed and now returns null instead of [] for empty lists, and the parent passes the raw value straight through.",
+          "prediction": "If we normalise null to [] at the fetch layer, the crash disappears — but this is upstream of the component and leaves the component fragile to future callers."
+        }
+      ],
+      "probe_commands": [
+        {
+          "id": "CMD-1",
+          "command": "npx jest src/components/TodoList.test.jsx --no-coverage",
+          "purpose": "Run the reproduction test to confirm the TypeError is consistently produced before any fix is applied.",
+          "linked_test_scenarios": []
+        }
+      ]
+    },
+    "tdd": null
+  }
+}

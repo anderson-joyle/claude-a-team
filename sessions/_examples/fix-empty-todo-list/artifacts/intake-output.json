@@ -1,0 +1,29 @@
+{
+  "schema_version": "2.0",
+  "artifact_type": "intake_output",
+  "artifact_id": "intake-001",
+  "request_id": "req-fix-empty-todo",
+  "producer": {
+    "role": "intake",
+    "model_provider": "anthropic",
+    "model_name": "claude-sonnet-4-6",
+    "runtime_name": "claude-code"
+  },
+  "created_at_utc": "2026-05-25T09:01:00Z",
+  "parent_artifact_ids": ["req-env-001"],
+  "confidence": "high",
+  "body": {
+    "normalized_title": "Fix TypeError on empty todo list",
+    "short_request_name": "fix-empty-todo-list",
+    "request_summary": "A TypeError is thrown when a user with no todos navigates to /todos because the todos prop is undefined and .map() is called without a null check.",
+    "work_signals": ["bug", "frontend", "react", "null-check", "undefined-access"],
+    "suggested_gates": {
+      "architect": false,
+      "security": false,
+      "review": false,
+      "release_readiness": false
+    },
+    "blocking_questions": [],
+    "notes": ["Low-risk, single-component fix. No architectural or security concerns."]
+  }
+}

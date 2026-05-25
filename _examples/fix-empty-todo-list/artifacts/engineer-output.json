@@ -1,0 +1,106 @@
+{
+  "schema_version": "2.0",
+  "artifact_type": "engineer_output",
+  "artifact_id": "eng-001",
+  "request_id": "req-fix-empty-todo",
+  "producer": {
+    "role": "engineer",
+    "model_provider": "anthropic",
+    "model_name": "claude-sonnet-4-6",
+    "runtime_name": "claude-code"
+  },
+  "created_at_utc": "2026-05-25T09:06:00Z",
+  "parent_artifact_ids": ["probe-gate-001", "pm-001"],
+  "confidence": "high",
+  "body": {
+    "technical_summary": "Add a default parameter value and an early-return empty state to TodoList.jsx. Two lines added to the component. Add two regression tests to TodoList.test.jsx. No other files change.",
+    "files_to_investigate": [
+      {
+        "repo_root_id": "repo-todo-app",
+        "path": "src/components/TodoList.jsx"
+      },
+      {
+        "repo_root_id": "repo-todo-app",
+        "path": "src/components/TodoList.test.jsx"
+      }
+    ],
+    "implementation_plan": [
+      "TodoList.jsx: change signature from ({ todos }) to ({ todos = [] }) to eliminate the undefined case",
+      "TodoList.jsx: add early return — if todos.length === 0, render the empty state paragraph",
+      "TodoList.test.jsx: promote the probe reproduction test to a permanent regression test; add a second case for todos=[]"
+    ],
+    "questions_for_user": [],
+    "assumptions": [
+      "todos=[] default is sufficient — no caller needs to distinguish undefined from empty",
+      "No snapshot tests reference TodoList output that would require updating"
+    ],
+    "design_notes": [
+      "H-1 (default prop + early return) chosen over H-2 (parent guard) and H-3 (API normalisation) — it fixes the root cause at the component boundary with the smallest possible change and makes the component robust to any caller."
+    ],
+    "observability_changes": [],
+    "docs_changes": [],
+    "migration_steps": [],
+    "rollback_plan": [
+      "Revert TodoList.jsx to previous version. No data or schema changes involved."
+    ],
+    "planned_changes": [
+      {
+        "repo_root_id": "repo-todo-app",
+        "path": "src/components/TodoList.jsx",
+        "action": "modify",
+        "content_mode": "unified_diff",
+        "rationale": "Add default value for todos prop and render empty state when list is empty",
+        "linked_acceptance_criteria": ["AC-1", "AC-2"],
+        "content": "--- a/src/components/TodoList.jsx\n+++ b/src/components/TodoList.jsx\n@@ -1,7 +1,11 @@\n import React from 'react';\n import TodoItem from './TodoItem';\n \n-function TodoList({ todos }) {\n+function TodoList({ todos = [] }) {\n+  if (todos.length === 0) {\n+    return <p>No todos yet. Create your first one!</p>;\n+  }\n+\n   return (\n     <ul>\n       {todos.map(todo => <TodoItem key={todo.id} todo={todo} />)}\n     </ul>\n   );\n }"
+      },
+      {
+        "repo_root_id": "repo-todo-app",
+        "path": "src/components/TodoList.test.jsx",
+        "action": "modify",
+        "content_mode": "unified_diff",
+        "rationale": "Promote probe reproduction test to permanent regression; add empty-array case",
+        "linked_acceptance_criteria": ["AC-1"],
+        "content": "--- a/src/components/TodoList.test.jsx\n+++ b/src/components/TodoList.test.jsx\n@@ -1,5 +1,17 @@\n import { render, screen } from '@testing-library/react';\n import TodoList from './TodoList';\n \n+test('renders empty state when todos is undefined', () => {\n+  render(<TodoList todos={undefined} />);\n+  expect(screen.getByText('No todos yet. Create your first one!')).toBeInTheDocument();\n+});\n+\n+test('renders empty state when todos is an empty array', () => {\n+  render(<TodoList todos={[]} />);\n+  expect(screen.getByText('No todos yet. Create your first one!')).toBeInTheDocument();\n+});\n+\n test('renders todo items', () => {"
+      }
+    ],
+    "execution_handoff": {
+      "code_change_summary": "Modify TodoList.jsx to handle undefined/empty todos; add regression tests to TodoList.test.jsx",
+      "changed_files": [
+        { "repo_root_id": "repo-todo-app", "path": "src/components/TodoList.jsx" },
+        { "repo_root_id": "repo-todo-app", "path": "src/components/TodoList.test.jsx" }
+      ],
+      "risk_areas": [
+        "Any snapshot test that renders TodoList may now differ — check for __snapshots__ files in the component directory"
+      ],
+      "test_scenarios": [
+        {
+          "id": "TS-1",
+          "statement": "Render TodoList with todos={undefined} — must show empty state, no error",
+          "linked_acceptance_criteria": ["AC-1"],
+          "expected_result": "Element with text 'No todos yet. Create your first one!' is present; no TypeError thrown"
+        },
+        {
+          "id": "TS-2",
+          "statement": "Render TodoList with todos={[]} — must show empty state, no error",
+          "linked_acceptance_criteria": ["AC-1"],
+          "expected_result": "Element with text 'No todos yet. Create your first one!' is present; no TypeError thrown"
+        },
+        {
+          "id": "TS-3",
+          "statement": "Render TodoList with a non-empty todos array — must render list items correctly",
+          "linked_acceptance_criteria": ["AC-2"],
+          "expected_result": "Todo items are rendered; empty state message is absent"
+        }
+      ],
+      "test_commands": [
+        {
+          "id": "CMD-2",
+          "command": "npx jest src/components/TodoList.test.jsx --no-coverage",
+          "purpose": "Run all TodoList tests including the two new regression tests",
+          "linked_test_scenarios": ["TS-1", "TS-2", "TS-3"]
+        }
+      ],
+      "additional_manual_checks": []
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "schema_version": "2.0",
+  "artifact_type": "probe_gate_output",
+  "artifact_id": "probe-gate-001",
+  "request_id": "req-fix-empty-todo",
+  "producer": {
+    "role": "engineer",
+    "model_provider": "anthropic",
+    "model_name": "claude-sonnet-4-6",
+    "runtime_name": "claude-code"
+  },
+  "created_at_utc": "2026-05-25T09:05:00Z",
+  "parent_artifact_ids": ["probe-001", "probe-results-001"],
+  "confidence": "high",
+  "body": {
+    "probe_mode": "diagnosis",
+    "gate_decision": {
+      "required": true,
+      "decision": "pass",
+      "summary": "Feedback loop confirmed. TypeError reproduced deterministically (exit code 1). Three ranked falsifiable hypotheses present. Advancing to implementation."
+    },
+    "probe_analysis": "The failing Jest test reliably reproduces the TypeError at TodoList.jsx:6 on every run. All three probe gate conditions are met: feedback loop is established, failure reproduces, and three hypotheses with falsifiable predictions are present. H-1 (missing default prop value) is the top-ranked hypothesis — it is surgical, confined to one component, and directly explains why todos=undefined crashes the map. Advancing to Engineer phase 2 with H-1 as the implementation starting point.",
+    "diagnosis_assessment": {
+      "feedback_loop_confirmed": true,
+      "reproduction_confirmed": true,
+      "hypotheses_count": 3,
+      "reproduction_assessment": "Deterministic failure. Reproduced on all runs. No flakiness observed."
+    },
+    "tdd_assessment": null,
+    "skip_reason": null,
+    "options_for_user": []
+  }
+}

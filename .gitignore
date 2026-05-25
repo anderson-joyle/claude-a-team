@@ -1,10 +1,2 @@
 settings.local.json
-
-# Live request sessions are local to each developer's machine. Reference
-# example sessions are kept under sessions/_examples/ and remain tracked.
-sessions/*
-!sessions/_examples/
-!sessions/_examples/**
-
-# Session leases written by the SessionStart hook
-.claude/.locks/
+sessions/

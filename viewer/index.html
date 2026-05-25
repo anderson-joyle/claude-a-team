@@ -217,6 +217,36 @@ const STAGES = [
   { id:'release',        label:'Release Readiness',    file:'release-readiness.json', req:false, role:'release'   },
 ];
 
+// ── Pricing (USD per 1M tokens) ───────────────────────────────────────────────
+const PRICING = {
+  'claude-opus-4-7':           { input: 15.00, cached_input: 1.50, output: 75.00 },
+  'claude-sonnet-4-6':         { input:  3.00, cached_input: 0.30, output: 15.00 },
+  'claude-haiku-4-5':          { input:  0.80, cached_input: 0.08, output:  4.00 },
+  'claude-haiku-4-5-20251001': { input:  0.80, cached_input: 0.08, output:  4.00 },
+};
+
+function sessionTokens(files) {
+  let input = 0, cached = 0, output = 0, hasAny = false, cost = 0, hasCost = false;
+  for (const art of Object.values(files)) {
+    const c = art?.context_cost_tokens;
+    if (!c) continue;
+    if (c.input        != null) { input  += c.input;        hasAny = true; }
+    if (c.cached_input != null) { cached += c.cached_input; hasAny = true; }
+    if (c.output       != null) { output += c.output;       hasAny = true; }
+    const p = PRICING[art?.producer?.model_name];
+    if (p && c.input != null && c.output != null) {
+      cost += (c.input / 1e6) * p.input
+            + ((c.cached_input ?? 0) / 1e6) * p.cached_input
+            + (c.output / 1e6) * p.output;
+      hasCost = true;
+    }
+  }
+  return { input, cached, output, total: input + cached + output, hasAny, cost, hasCost };
+}
+
+const fmtTokens = n => n >= 1e6 ? (n/1e6).toFixed(2)+'M' : n >= 1000 ? Math.round(n/1000)+'k' : String(n);
+const fmtCost   = n => '$' + (n < 0.01 ? '<0.01' : n.toFixed(2));
+
 // ── State ─────────────────────────────────────────────────────────────────────
 const S = { sessions: new Map(), active: null, dev: false, expanded: new Set() };
 
@@ -229,8 +259,8 @@ folderInput.addEventListener('change', async () => {
   const map = {};
   await Promise.all([...folderInput.files].map(async file => {
     const parts = file.webkitRelativePath.split('/');
-    if (parts.length < 2 || !parts[parts.length-1].endsWith('.json')) return;
-    const sName = parts[0], fname = parts[parts.length-1];
+    if (parts.length !== 3 || parts[1] !== 'artifacts' || !parts[2].endsWith('.json')) return;
+    const sName = parts[0], fname = parts[2];
     if (!map[sName]) map[sName] = {};
     try { map[sName][fname] = JSON.parse(await file.text()); } catch {}
   }));
@@ -254,9 +284,7 @@ document.addEventListener('drop', async e => {
 async function readDir(dir) {
   const files = {};
   for (const entry of await allEntries(dir)) {
-    if (entry.isFile && entry.name.endsWith('.json')) {
-      try { files[entry.name] = JSON.parse(await (await entryFile(entry)).text()); } catch {}
-    } else if (entry.isDirectory && entry.name === 'artifacts') {
+    if (entry.isDirectory && entry.name === 'artifacts') {
       for (const ae of await allEntries(entry)) {
         if (ae.isFile && ae.name.endsWith('.json')) {
           try { files[ae.name] = JSON.parse(await (await entryFile(ae)).text()); } catch {}
@@ -336,17 +364,27 @@ function renderSidebar() {
 
 function renderMain() {
   const { files } = S.sessions.get(S.active);
-  renderSummaryBar(summary(files));
+  renderSummaryBar(summary(files), sessionTokens(files));
   const dt = document.getElementById('dev-toggle');
   dt.className = 'tog-btn' + (S.dev?' active':'');
   dt.onclick = () => { S.dev=!S.dev; renderMain(); };
   renderTimeline(files);
 }
 
-function renderSummaryBar(s) {
+function renderSummaryBar(s, tok) {
   const acText = s.acTotal>0
     ? `${s.acVerified}/${s.acTotal} passed${s.acFailed>0?` · ${s.acFailed} failed`:''}`
     : '—';
+  const tokChip = tok.hasAny
+    ? `<div class="stat-chip" title="input: ${tok.input.toLocaleString()} · cached: ${tok.cached.toLocaleString()} · output: ${tok.output.toLocaleString()}">
+        <span class="chip-label">Tokens</span>
+        <span class="chip-value">${fmtTokens(tok.total)}</span>
+       </div>` : '';
+  const costChip = tok.hasCost
+    ? `<div class="stat-chip" title="Estimated from Anthropic public pricing. Cached input billed at reduced rate.">
+        <span class="chip-label">Est. cost</span>
+        <span class="chip-value">${fmtCost(tok.cost)}</span>
+       </div>` : '';
   document.getElementById('summary-bar').innerHTML = `
     <div class="sum-title-row">
       <div class="sum-title">${x(s.title)}</div>
@@ -361,6 +399,7 @@ function renderSummaryBar(s) {
         <span class="chip-value"><span class="badge badge-${s.qaRec}">${s.qaRec}</span></span></div>`:''}
       ${s.confidence?`<div class="stat-chip"><span class="chip-label">Confidence</span>
         <span class="chip-value">${x(s.confidence)}</span></div>`:''}
+      ${tokChip}${costChip}
     </div>`;
 }
 
@@ -556,17 +595,30 @@ function stageDetail(id, a) {
       parts.push(sec('Release',grid([
         ['Status',b.status],
         ['Recommendation',b.recommendation?`<span class="badge badge-${b.recommendation}">${b.recommendation}</span>`:'—',1],
+        ['Summary',b.summary],
         ['Rollback readiness',b.rollback_readiness],
         ['Observability',b.observability_readiness],
         ['Docs',b.documentation_readiness],
       ])));
       if(b.blocking_issues?.length) parts.push(sec('Blocking issues',detList(b.blocking_issues)));
       if(b.known_risks?.length) parts.push(sec('Known risks',detList(b.known_risks)));
+      if(b.required_follow_ups?.length) parts.push(sec('Required follow-ups',detList(b.required_follow_ups)));
       break;
   }
+  const c = a.context_cost_tokens;
+  const tokRows = c ? [
+    ['Tokens (in/cached/out)',
+      [c.input,c.cached_input,c.output].map(v=>v!=null?fmtTokens(v):'—').join(' / ')],
+  ] : [];
+  const p = PRICING[a.producer?.model_name];
+  const artCost = (c && p && c.input!=null && c.output!=null)
+    ? fmtCost((c.input/1e6)*p.input + ((c.cached_input??0)/1e6)*p.cached_input + (c.output/1e6)*p.output)
+    : null;
   parts.push(sec('Metadata',grid([
     ['Producer',`${a.producer?.role} · ${a.producer?.model_provider}/${a.producer?.model_name}`],
     ['Created',a.created_at_utc],['Confidence',a.confidence],['Artifact ID',a.artifact_id],
+    ...tokRows,
+    ...(artCost?[['Est. cost',artCost]]:[]),
   ])));
   return parts.join('');
 }

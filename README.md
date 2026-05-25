@@ -37,6 +37,8 @@ Stages in `[brackets?]` are conditional — the routing rules below say when the
 | **Security** | Auth, secrets, external input, new deps, CI/CD changes | Threat surfaces, required controls, gate decision |
 | **Engineer (probe)** | After PM (and optional gates) | Diagnosis Probe (`bug`) or TDD Probe (`feature`/`improvement`) |
 | **Diagnose** | Called internally by Engineer for bugs | Feedback loop types, reproduce checklist, ranked hypotheses |
+| **Executor** | After Engineer probe; after Engineer impl | Runs commands/applies changes, records exit codes and output — no reasoning, no rewrites |
+| **Probe Gate** | After Executor (probe run) | Pass/fail decision on probe evidence; hard stop before implementation |
 | **Engineer (impl)** | After Probe Gate passes | Implementation plan, planned file changes, execution handoff |
 | **Review** | Medium/high risk, 2nd opinion requested, >3 files change | Concerns, recommended changes, approval status |
 | **QA** | After execution results exist | Verified acceptance criteria, findings, ship/hold recommendation |
@@ -150,18 +152,49 @@ claude-a-team/
 │   └── runtime/
 │       ├── gates-and-flow.md        ← gate triggers and Probe Gate decision tables
 │       └── storage-layout.md        ← session folder structure and artifact filenames
-└── .claude/
-    └── skills/
-        ├── intake/
-        ├── pm/
-        ├── architect/
-        ├── security/
-        ├── engineer/
-        ├── diagnose/                 ← Diagnosis Probe methodology (called by engineer)
-        ├── review/
-        ├── qa/
-        └── release-readiness/
+├── skills/
+│   ├── intake/
+│   ├── pm/
+│   ├── architect/
+│   ├── security/
+│   ├── engineer/
+│   ├── diagnose/                    ← Diagnosis Probe methodology (called by engineer)
+│   ├── executor/                    ← runtime stage: applies changes, runs commands
+│   ├── review/
+│   ├── qa/
+│   └── release-readiness/
+├── sessions/                        ← one subfolder per request, holds all artifacts
+└── viewer/
+    └── index.html                   ← local pipeline viewer (open in any browser)
 ```
+
+---
+
+## Viewer
+
+The pipeline viewer is a single-file HTML app (`viewer/index.html`) that lets you inspect any session's artifacts visually — no server, no build step, no dependencies.
+
+### Benefits
+
+- **Full pipeline at a glance** — every stage appears in order with a pass/warn/fail/skip status dot. Missing optional stages are shown as skipped rather than hidden.
+- **Expandable detail** — click any stage card to see its key fields rendered in a clean grid. Acceptance criteria, hypotheses, commands, planned file changes, and findings each get purpose-built layouts.
+- **Token and cost tracking** — the summary bar shows total token consumption (input / cached / output) and an estimated USD cost derived from Anthropic's public pricing, aggregated across all artifacts in the session. Each expanded artifact card also shows its individual token breakdown and cost estimate. Hover the chips for the full input/cached/output split.
+- **Developer mode** — toggle raw JSON view for any stage to inspect the full artifact envelope.
+- **Multi-session sidebar** — load multiple session folders at once and switch between them without reloading.
+- **Zero setup** — open `viewer/index.html` directly in your browser. Drag a session folder onto the page or use the file picker.
+
+### How to use
+
+1. Open `viewer/index.html` in any modern browser (Chrome, Edge, Firefox, Safari).
+2. Drag a session folder (e.g. `sessions/fix-login-timeout/`) onto the page — or click **＋ Add sessions** and select the folder.
+3. The viewer reads `*.json` files exclusively from the `artifacts/` subfolder inside the dropped session folder and maps them to pipeline stages by filename.
+4. Use the sidebar to switch between sessions. Click any stage card to expand it. Toggle **Developer view** for the raw artifact JSON.
+
+> Sessions live under `sessions/` — each subfolder is one request. You can load multiple session folders at once to compare runs side by side in the sidebar.
+
+### Screenshot
+
+<!-- TODO: add screenshot here -->
 
 ---
 

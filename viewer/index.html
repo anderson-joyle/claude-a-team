@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A-TEAM Pipeline Viewer</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f1f5f9;--surface:#fff;--surface2:#f8fafc;--border:#e2e8f0;
+  --text:#0f172a;--muted:#64748b;
+  --accent:#6366f1;--accent-bg:#eef2ff;
+  --pass:#10b981;--pass-bg:#d1fae5;
+  --fail:#ef4444;--fail-bg:#fee2e2;
+  --warn:#f59e0b;--warn-bg:#fef3c7;
+  --skip:#94a3b8;--skip-bg:#f1f5f9;
+  --r:8px;--shadow:0 1px 3px rgba(0,0,0,.1);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* header */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;gap:12px;flex-shrink:0;z-index:10}
+header h1{font-size:15px;font-weight:700;letter-spacing:-.01em}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block;margin-right:6px}
+#add-btn{margin-left:auto;background:var(--accent);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer}
+#add-btn:hover{opacity:.9}
+
+/* empty state */
+#empty-state{flex:1;display:flex;align-items:center;justify-content:center}
+#drop-zone{border:2px dashed var(--border);border-radius:16px;padding:64px 80px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+#drop-zone:hover,#drop-zone.drag-over{border-color:var(--accent);background:var(--accent-bg)}
+.dz-icon{font-size:40px;margin-bottom:16px}
+#drop-zone h2{font-size:18px;font-weight:600;margin-bottom:8px}
+#drop-zone p{color:var(--muted);font-size:13px;margin-top:8px}
+#drop-zone a{color:var(--accent)}
+.dz-hint{font-size:12px;color:var(--skip);margin-top:16px}
+
+/* layout */
+#layout{flex:1;display:flex;overflow:hidden}
+
+/* sidebar */
+#sidebar{width:200px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#sidebar-header{padding:12px 16px 8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--border);flex-shrink:0}
+#session-list{overflow-y:auto;flex:1;padding:8px 0}
+.session-item{padding:8px 16px;cursor:pointer;border-left:3px solid transparent;display:flex;flex-direction:column;gap:2px}
+.session-item:hover{background:var(--bg)}
+.session-item.active{border-left-color:var(--accent);background:var(--accent-bg)}
+.s-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s-meta{font-size:11px;color:var(--muted)}
+
+/* main */
+#main{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:16px}
+
+/* summary bar */
+#summary-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;display:flex;flex-direction:column;gap:10px}
+.sum-title-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sum-title{font-size:16px;font-weight:600;flex:1;min-width:0}
+.sum-stats{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.stat-chip{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px}
+.chip-label{color:var(--muted)}
+.chip-value{font-weight:600}
+
+/* toolbar */
+#toolbar{display:flex;align-items:center;gap:8px}
+.tog-btn{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;color:var(--muted);transition:all .15s}
+.tog-btn.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.tog-btn:hover{border-color:var(--accent)}
+
+/* timeline */
+#timeline{display:flex;flex-direction:column}
+.stage-row{display:flex;gap:0}
+.stage-connector{display:flex;flex-direction:column;align-items:center;width:32px;flex-shrink:0}
+.stage-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;margin-top:14px;z-index:1}
+.stage-line{width:2px;flex:1;min-height:12px;background:var(--border);margin-top:2px}
+.stage-row:last-child .stage-line{display:none}
+.dot-pass{background:var(--pass)}
+.dot-fail{background:var(--fail)}
+.dot-warn{background:var(--warn)}
+.dot-skip{background:transparent;border:2px solid var(--skip)}
+.dot-missing{background:transparent;border:2px dashed #cbd5e1}
+
+/* stage card */
+.stage-card{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;overflow:hidden;transition:box-shadow .15s}
+.stage-card:hover{box-shadow:var(--shadow)}
+.sc-header{padding:10px 14px;display:flex;align-items:center;gap:8px;user-select:none}
+.sc-header.clickable{cursor:pointer}
+.sc-header.clickable:hover{background:var(--surface2)}
+.sc-label{font-size:13px;font-weight:600;flex:1}
+.sc-role{font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
+.chevron{font-size:12px;color:var(--muted);transition:transform .15s;margin-left:4px}
+.chevron.open{transform:rotate(180deg)}
+
+/* badges */
+.badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.03em}
+.badge-pass{background:var(--pass-bg);color:var(--pass)}
+.badge-fail{background:var(--fail-bg);color:var(--fail)}
+.badge-warn{background:var(--warn-bg);color:var(--warn)}
+.badge-skip{background:var(--skip-bg);color:var(--skip)}
+.badge-missing{background:#f8fafc;color:#94a3b8;border:1px dashed #cbd5e1}
+.badge-bug{background:#fee2e2;color:#dc2626}
+.badge-feature{background:#dbeafe;color:#2563eb}
+.badge-improvement{background:#ede9fe;color:#7c3aed}
+.badge-technical_debt{background:#fef3c7;color:#d97706}
+.badge-unclear{background:var(--skip-bg);color:var(--skip)}
+.badge-ship{background:var(--pass-bg);color:var(--pass)}
+.badge-hold{background:var(--warn-bg);color:var(--warn)}
+.badge-reject{background:var(--fail-bg);color:var(--fail)}
+.badge-must{background:var(--fail-bg);color:var(--fail)}
+.badge-should{background:var(--warn-bg);color:var(--warn)}
+.badge-could{background:var(--skip-bg);color:var(--skip)}
+
+/* compact summary */
+.sc-summary{padding:0 14px 10px;display:flex;gap:16px;flex-wrap:wrap}
+.sf{display:flex;flex-direction:column;gap:1px}
+.sf-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.sf-value{font-size:13px}
+.sf-value.trunc{max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* stage detail */
+.sc-detail{border-top:1px solid var(--border);padding:14px;background:var(--surface2);display:flex;flex-direction:column;gap:12px}
+.det-section{display:flex;flex-direction:column;gap:6px}
+.det-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.det-grid{display:grid;grid-template-columns:150px 1fr;gap:4px 12px}
+.dg-label{color:var(--muted);font-size:12px}
+.dg-value{font-size:12px}
+.det-list{display:flex;flex-direction:column;gap:4px}
+.det-list-item{font-size:12px;padding:4px 8px;background:var(--surface);border:1px solid var(--border);border-radius:4px}
+
+/* ac items */
+.ac-item{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:4px;font-size:12px}
+.ac-id{color:var(--muted);flex-shrink:0;font-family:monospace;font-size:11px;padding-top:1px}
+.ac-text{flex:1}
+.ac-pri{flex-shrink:0}
+
+/* hypothesis */
+.hyp-item{padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;font-size:12px;display:flex;flex-direction:column;gap:3px}
+.hyp-rank{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase}
+.hyp-pred{color:var(--muted);font-style:italic}
+
+/* file changes */
+.fc-item{display:flex;gap:8px;align-items:center;padding:4px 8px;background:var(--surface);border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:monospace}
+.fca-create{color:var(--pass)}
+.fca-modify{color:var(--accent)}
+.fca-delete{color:var(--fail)}
+
+/* commands */
+.cmd-item{display:flex;gap:8px;align-items:center;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:4px;font-size:12px}
+.cmd-exit{font-weight:700;padding:1px 6px;border-radius:4px;font-family:monospace;font-size:11px;flex-shrink:0}
+.exit-ok{background:var(--pass-bg);color:var(--pass)}
+.exit-err{background:var(--fail-bg);color:var(--fail)}
+.cmd-text{font-family:monospace;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmd-dur{color:var(--muted);flex-shrink:0;font-size:11px}
+
+/* json view */
+.json-view{background:#1e293b;border-radius:6px;padding:14px;overflow-x:auto}
+.json-view pre{font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.6;color:#e2e8f0;white-space:pre}
+.jk{color:#93c5fd}.js{color:#86efac}.jn{color:#fbbf24}.jb{color:#f472b6}.jnull{color:#94a3b8}
+
+/* drag overlay */
+#drag-overlay{display:none;position:fixed;inset:0;background:rgba(99,102,241,.08);border:3px dashed var(--accent);z-index:100;align-items:center;justify-content:center;pointer-events:none}
+#drag-overlay.active{display:flex}
+#drag-overlay span{background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:16px 32px;font-weight:600;color:var(--accent);font-size:16px;pointer-events:none}
+
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<div id="drag-overlay"><span>📁 Drop session folders</span></div>
+
+<header>
+  <span class="logo-dot"></span>
+  <h1>A-TEAM Pipeline Viewer</h1>
+  <button id="add-btn">＋ Add sessions</button>
+  <input type="file" id="folder-input" webkitdirectory multiple style="display:none">
+</header>
+
+<div id="empty-state">
+  <div id="drop-zone">
+    <div class="dz-icon">📁</div>
+    <h2>Drop session folders here</h2>
+    <p>or <a href="#" id="dz-click">click to select a folder</a></p>
+    <div class="dz-hint">Sessions live in <code>sessions/_examples/</code> — drop any subfolder</div>
+  </div>
+</div>
+
+<div id="layout" style="display:none">
+  <aside id="sidebar">
+    <div id="sidebar-header">Sessions</div>
+    <div id="session-list"></div>
+  </aside>
+  <main id="main">
+    <div id="summary-bar"></div>
+    <div id="toolbar">
+      <button class="tog-btn" id="dev-toggle">⟨/⟩ Developer view</button>
+    </div>
+    <div id="timeline"></div>
+  </main>
+</div>
+
+<script>
+// ── Pipeline stages ───────────────────────────────────────────────────────────
+const STAGES = [
+  { id:'intake',         label:'Intake',               file:'intake-output.json',     req:true,  role:'intake'    },
+  { id:'pm',             label:'PM',                   file:'pm-output.json',         req:true,  role:'pm'        },
+  { id:'architect',      label:'Architect',            file:'architect-output.json',  req:false, role:'architect' },
+  { id:'security',       label:'Security',             file:'security-output.json',   req:false, role:'security'  },
+  { id:'engineer-probe', label:'Engineer (probe)',     file:'probe-output.json',      req:true,  role:'engineer'  },
+  { id:'executor-probe', label:'Executor (probe run)', file:'probe-results.json',     req:true,  role:'executor'  },
+  { id:'probe-gate',     label:'Probe Gate',           file:'probe-gate-output.json', req:true,  role:'gate'      },
+  { id:'engineer-impl',  label:'Engineer (impl)',      file:'engineer-output.json',   req:true,  role:'engineer'  },
+  { id:'review',         label:'Review',               file:'review-output.json',     req:false, role:'review'    },
+  { id:'executor-impl',  label:'Executor (impl run)',  file:'execution-results.json', req:true,  role:'executor'  },
+  { id:'qa',             label:'QA',                   file:'qa-output.json',         req:true,  role:'qa'        },
+  { id:'release',        label:'Release Readiness',    file:'release-readiness.json', req:false, role:'release'   },
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const S = { sessions: new Map(), active: null, dev: false, expanded: new Set() };
+
+// ── File loading ──────────────────────────────────────────────────────────────
+const folderInput = document.getElementById('folder-input');
+document.getElementById('add-btn').addEventListener('click', () => folderInput.click());
+document.getElementById('dz-click').addEventListener('click', e => { e.preventDefault(); folderInput.click(); });
+
+folderInput.addEventListener('change', async () => {
+  const map = {};
+  await Promise.all([...folderInput.files].map(async file => {
+    const parts = file.webkitRelativePath.split('/');
+    if (parts.length < 2 || !parts[parts.length-1].endsWith('.json')) return;
+    const sName = parts[0], fname = parts[parts.length-1];
+    if (!map[sName]) map[sName] = {};
+    try { map[sName][fname] = JSON.parse(await file.text()); } catch {}
+  }));
+  Object.entries(map).forEach(([n, f]) => addSession(n, f));
+  folderInput.value = '';
+});
+
+// Drag & drop
+let depth = 0;
+document.addEventListener('dragenter', e => { e.preventDefault(); if(++depth===1) document.getElementById('drag-overlay').classList.add('active'); });
+document.addEventListener('dragleave', () => { if(--depth<=0){ depth=0; document.getElementById('drag-overlay').classList.remove('active'); }});
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', async e => {
+  e.preventDefault(); depth=0; document.getElementById('drag-overlay').classList.remove('active');
+  for (const item of [...e.dataTransfer.items]) {
+    const entry = item.webkitGetAsEntry?.();
+    if (entry?.isDirectory) addSession(entry.name, await readDir(entry));
+  }
+});
+
+async function readDir(dir) {
+  const files = {};
+  for (const entry of await allEntries(dir)) {
+    if (entry.isFile && entry.name.endsWith('.json')) {
+      try { files[entry.name] = JSON.parse(await (await entryFile(entry)).text()); } catch {}
+    } else if (entry.isDirectory && entry.name === 'artifacts') {
+      for (const ae of await allEntries(entry)) {
+        if (ae.isFile && ae.name.endsWith('.json')) {
+          try { files[ae.name] = JSON.parse(await (await entryFile(ae)).text()); } catch {}
+        }
+      }
+    }
+  }
+  return files;
+}
+
+function allEntries(dir) {
+  return new Promise(res => {
+    const r = dir.createReader(), all = [];
+    (function read(){ r.readEntries(es => es.length ? (all.push(...es), read()) : res(all)); })();
+  });
+}
+function entryFile(e) { return new Promise(res => e.file(res)); }
+
+// ── Session ───────────────────────────────────────────────────────────────────
+function addSession(name, files) {
+  S.sessions.set(name, { name, files });
+  if (!S.active) S.active = name;
+  renderAll();
+}
+function setActive(name) { S.active = name; S.expanded.clear(); renderAll(); }
+
+// ── Status ────────────────────────────────────────────────────────────────────
+function status(stageId, a) {
+  if (!a) return STAGES.find(s=>s.id===stageId)?.req ? 'missing' : 'skip';
+  const b = a.body, d = b?.gate_decision?.decision;
+  if (d) return ['pass','not_applicable'].includes(d)?'pass':['fail','blocked'].includes(d)?'fail':d==='needs_changes'?'warn':'pass';
+  if (b?.status) return {pass:'pass',fail:'fail',inconclusive:'warn'}[b.status]||'pass';
+  if (b?.apply_status) return {applied:'pass',failed:'fail',partially_applied:'warn',not_attempted:'pass'}[b.apply_status]||'pass';
+  return 'pass';
+}
+const statusLabel = s => ({pass:'Pass',fail:'Fail',warn:'Warning',skip:'Skipped',missing:'Missing'}[s]||s);
+
+// ── Summary ───────────────────────────────────────────────────────────────────
+function summary(files) {
+  const i=files['intake-output.json'], p=files['pm-output.json'],
+        q=files['qa-output.json'], r=files['request-envelope.json'];
+  const av=q?.body?.verified_acceptance_criteria?.length??0,
+        af=q?.body?.failed_acceptance_criteria?.length??0,
+        au=q?.body?.untested_acceptance_criteria?.length??0;
+  return {
+    title: i?.body?.normalized_title||r?.body?.request_title||'Untitled',
+    workType: p?.body?.work_type,
+    acVerified:av, acFailed:af, acUntested:au, acTotal:av+af+au,
+    qaRec: q?.body?.recommendation,
+    confidence: q?.confidence,
+    done: !!q,
+  };
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderAll() {
+  const has = S.sessions.size > 0;
+  document.getElementById('empty-state').style.display = has ? 'none' : 'flex';
+  document.getElementById('layout').style.display = has ? 'flex' : 'none';
+  if (!has) return;
+  renderSidebar();
+  if (S.active) renderMain();
+}
+
+function renderSidebar() {
+  const list = document.getElementById('session-list');
+  list.innerHTML = '';
+  for (const [name, sess] of S.sessions) {
+    const s = summary(sess.files);
+    const el = document.createElement('div');
+    el.className = 'session-item' + (name===S.active?' active':'');
+    el.innerHTML = `<span class="s-name">${x(name)}</span><span class="s-meta">${s.workType?wtBadge(s.workType):''}</span>`;
+    el.addEventListener('click', () => setActive(name));
+    list.appendChild(el);
+  }
+}
+
+function renderMain() {
+  const { files } = S.sessions.get(S.active);
+  renderSummaryBar(summary(files));
+  const dt = document.getElementById('dev-toggle');
+  dt.className = 'tog-btn' + (S.dev?' active':'');
+  dt.onclick = () => { S.dev=!S.dev; renderMain(); };
+  renderTimeline(files);
+}
+
+function renderSummaryBar(s) {
+  const acText = s.acTotal>0
+    ? `${s.acVerified}/${s.acTotal} passed${s.acFailed>0?` · ${s.acFailed} failed`:''}`
+    : '—';
+  document.getElementById('summary-bar').innerHTML = `
+    <div class="sum-title-row">
+      <div class="sum-title">${x(s.title)}</div>
+      ${s.workType?wtBadge(s.workType):''}
+    </div>
+    <div class="sum-stats">
+      <div class="stat-chip"><span class="chip-label">Pipeline</span>
+        <span class="chip-value">${s.done?'✓ Complete':'⟳ In progress'}</span></div>
+      <div class="stat-chip"><span class="chip-label">Criteria</span>
+        <span class="chip-value">${x(acText)}</span></div>
+      ${s.qaRec?`<div class="stat-chip"><span class="chip-label">QA</span>
+        <span class="chip-value"><span class="badge badge-${s.qaRec}">${s.qaRec}</span></span></div>`:''}
+      ${s.confidence?`<div class="stat-chip"><span class="chip-label">Confidence</span>
+        <span class="chip-value">${x(s.confidence)}</span></div>`:''}
+    </div>`;
+}
+
+function renderTimeline(files) {
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = '';
+  for (const stage of STAGES) {
+    const art = files[stage.file]||null;
+    const st = status(stage.id, art);
+    const open = S.expanded.has(stage.id);
+    const row = document.createElement('div');
+    row.className = 'stage-row';
+
+    const conn = document.createElement('div');
+    conn.className = 'stage-connector';
+    conn.innerHTML = `<div class="stage-dot dot-${st}"></div><div class="stage-line"></div>`;
+
+    const card = document.createElement('div');
+    card.className = 'stage-card';
+
+    // header
+    const hdr = document.createElement('div');
+    hdr.className = 'sc-header' + (art?' clickable':'');
+    hdr.innerHTML = `
+      <span class="sc-label">${x(stage.label)}</span>
+      <span class="sc-role">${x(stage.role)}</span>
+      <span class="badge badge-${st}">${statusLabel(st)}</span>
+      ${art?`<span class="chevron${open?' open':''}">▾</span>`:''}`;
+    if (art) hdr.addEventListener('click', () => {
+      S.expanded.has(stage.id)?S.expanded.delete(stage.id):S.expanded.add(stage.id);
+      renderMain();
+    });
+    card.appendChild(hdr);
+
+    // compact fields
+    if (art) {
+      const fields = compactFields(stage.id, art);
+      if (fields.length) {
+        const sum = document.createElement('div');
+        sum.className = 'sc-summary';
+        sum.innerHTML = fields.map(f=>`
+          <div class="sf">
+            <span class="sf-label">${x(f.label)}</span>
+            <span class="sf-value${f.trunc?' trunc':''}">${f.html||x(String(f.value??'—'))}</span>
+          </div>`).join('');
+        card.appendChild(sum);
+      }
+    }
+
+    // expanded detail
+    if (art && open) {
+      const det = document.createElement('div');
+      det.className = 'sc-detail';
+      det.innerHTML = S.dev
+        ? `<div class="json-view"><pre>${jsonHL(art)}</pre></div>`
+        : stageDetail(stage.id, art);
+      card.appendChild(det);
+    }
+
+    row.appendChild(conn);
+    row.appendChild(card);
+    tl.appendChild(row);
+  }
+}
+
+// ── Compact fields ────────────────────────────────────────────────────────────
+function compactFields(id, a) {
+  const b = a.body;
+  switch(id) {
+    case 'intake':      return [{label:'Request',value:b.normalized_title,trunc:true}];
+    case 'pm':          return [{label:'Work type',html:wtBadge(b.work_type)},{label:'Priority',value:b.priority}];
+    case 'architect':   return [{label:'Scope',value:b.technical_scope_summary,trunc:true}];
+    case 'security':    return [{label:'Scope',value:b.security_scope_summary,trunc:true}];
+    case 'engineer-probe': return [
+      {label:'Mode',value:b.probe_mode},
+      {label:'Reproduction',value:(b.confidence_in_reproduction||'—')+' confidence'}];
+    case 'executor-probe': { const c=b.commands_attempted||[]; return [{label:'Commands',value:`${c.filter(x=>x.exit_code===0).length}/${c.length} exited 0`}]; }
+    case 'probe-gate':  return [{label:'Decision',html:`<span class="badge badge-${gdSt(b.gate_decision?.decision)}">${b.gate_decision?.decision||'—'}</span>`}];
+    case 'engineer-impl': return [
+      {label:'Summary',value:b.technical_summary,trunc:true},
+      {label:'Changes',value:`${b.planned_changes?.length||0} files`}];
+    case 'review':      return [{label:'Approval',value:b.approval_status},{label:'Concerns',value:String(b.concerns?.length||0)}];
+    case 'executor-impl': { const c=b.commands_attempted||[]; return [
+      {label:'Apply',value:b.apply_status},
+      {label:'Tests',value:c.length?`${c.filter(z=>z.exit_code===0).length}/${c.length} passed`:'—'}]; }
+    case 'qa':          return [
+      {label:'Status',html:`<span class="badge badge-${b.status}">${b.status}</span>`},
+      {label:'Recommendation',html:`<span class="badge badge-${b.recommendation}">${b.recommendation}</span>`}];
+    case 'release':     return [
+      {label:'Status',value:b.status},
+      {label:'Recommendation',html:b.recommendation?`<span class="badge badge-${b.recommendation}">${b.recommendation}</span>`:'—'}];
+    default: return [];
+  }
+}
+
+// ── Stage detail ──────────────────────────────────────────────────────────────
+function stageDetail(id, a) {
+  const b = a.body;
+  const parts = [];
+  switch(id) {
+    case 'intake':
+      parts.push(sec('Request', grid([
+        ['Normalized title',b.normalized_title],
+        ['Source',b.request_source?.kind],
+        ['Work signals',(b.work_signals||[]).join(', ')||'—'],
+      ])));
+      const gs=Object.entries(b.suggested_gates||{}).filter(([,v])=>v).map(([k])=>k);
+      parts.push(sec('Suggested gates', gs.length?detList(gs):'<span style="color:var(--muted)">None</span>'));
+      if(b.blocking_questions?.length) parts.push(sec('Blocking questions',detList(b.blocking_questions)));
+      if(b.notes?.length) parts.push(sec('Notes',detList(b.notes)));
+      break;
+    case 'pm':
+      parts.push(sec('Brief', grid([
+        ['Work type',wtBadge(b.work_type),1],
+        ['Priority',b.priority],
+        ['Problem',b.problem_statement],
+        ['Current behavior',b.current_behavior],
+        ['Expected behavior',b.expected_behavior],
+        ['User impact',b.user_impact],
+      ])));
+      if(b.acceptance_criteria?.length) parts.push(sec('Acceptance criteria',acList(b.acceptance_criteria)));
+      if(b.scope_in?.length) parts.push(sec('In scope',detList(b.scope_in)));
+      if(b.scope_out?.length) parts.push(sec('Out of scope',detList(b.scope_out)));
+      if(b.assumptions?.length) parts.push(sec('Assumptions',detList(b.assumptions)));
+      if(b.risks?.length) parts.push(sec('Risks',detList(b.risks)));
+      break;
+    case 'architect':
+    case 'security':
+      if(b.gate_decision) parts.push(sec('Gate',grid([
+        ['Decision',`<span class="badge badge-${gdSt(b.gate_decision.decision)}">${b.gate_decision.decision}</span>`,1],
+        ['Summary',b.gate_decision.summary],
+      ])));
+      if(id==='architect'){
+        if(b.recommended_approach?.length) parts.push(sec('Approach',detList(b.recommended_approach)));
+        if(b.tradeoffs?.length) parts.push(sec('Tradeoffs',detList(b.tradeoffs)));
+      } else {
+        if(b.required_controls?.length) parts.push(sec('Required controls',detList(b.required_controls)));
+      }
+      if(b.risks?.length) parts.push(sec('Risks',detList(b.risks)));
+      break;
+    case 'engineer-probe':
+      parts.push(sec('Probe',grid([
+        ['Mode',b.probe_mode],['Confidence',b.confidence_in_reproduction],
+        ...(b.diagnosis?[['Loop type',b.diagnosis.feedback_loop_type],['Description',b.diagnosis.feedback_loop_description],['Reproduced',String(b.diagnosis.reproduction_confirmed)]]:[]),
+        ...(b.tdd?[['Test scenarios',String(b.tdd.probe_test_scenarios?.length||0)]]:[]),
+      ])));
+      if(b.diagnosis?.ranked_hypotheses?.length) parts.push(sec('Hypotheses',hypList(b.diagnosis.ranked_hypotheses)));
+      if(b.tdd?.probe_test_scenarios?.length) parts.push(sec('Test scenarios',acList(b.tdd.probe_test_scenarios.map(t=>({id:t.id,statement:t.statement,priority:'must'})))));
+      if(b.assumptions?.length) parts.push(sec('Assumptions',detList(b.assumptions)));
+      break;
+    case 'executor-probe':
+    case 'executor-impl':
+      parts.push(sec('Execution',grid([['Apply status',b.apply_status],['OS',b.environment?.os]])));
+      if(b.commands_attempted?.length) parts.push(sec('Commands',cmdList(b.commands_attempted)));
+      if(b.notes?.length) parts.push(sec('Notes',detList(b.notes)));
+      break;
+    case 'probe-gate':
+      parts.push(sec('Gate decision',grid([
+        ['Decision',`<span class="badge badge-${gdSt(b.gate_decision?.decision)}">${b.gate_decision?.decision||'—'}</span>`,1],
+        ['Mode',b.probe_mode],['Analysis',b.probe_analysis],
+      ])));
+      if(b.options_for_user?.length) parts.push(sec('Options for user',detList(b.options_for_user)));
+      break;
+    case 'engineer-impl':
+      parts.push(sec('Implementation',grid([
+        ['Summary',b.technical_summary],
+        ['Risk areas',(b.execution_handoff?.risk_areas||[]).join(', ')||'—'],
+      ])));
+      if(b.planned_changes?.length) parts.push(sec('Planned changes',fcList(b.planned_changes)));
+      if(b.implementation_plan?.length) parts.push(sec('Plan',detList(b.implementation_plan)));
+      if(b.assumptions?.length) parts.push(sec('Assumptions',detList(b.assumptions)));
+      if(b.rollback_plan?.length) parts.push(sec('Rollback plan',detList(b.rollback_plan)));
+      break;
+    case 'review':
+      parts.push(sec('Review',grid([['Approval',b.approval_status],['Gate',b.gate_decision?.decision]])));
+      if(b.strengths?.length) parts.push(sec('Strengths',detList(b.strengths)));
+      if(b.concerns?.length) parts.push(sec('Concerns',detList(b.concerns)));
+      if(b.recommended_changes?.length) parts.push(sec('Recommended changes',detList(b.recommended_changes)));
+      break;
+    case 'qa':
+      parts.push(sec('Result',grid([
+        ['Status',`<span class="badge badge-${b.status}">${b.status}</span>`,1],
+        ['Recommendation',b.recommendation?`<span class="badge badge-${b.recommendation}">${b.recommendation}</span>`:'—',1],
+        ['Verified',b.verified_acceptance_criteria?.join(', ')||'—'],
+        ['Failed',b.failed_acceptance_criteria?.join(', ')||'—'],
+        ['Untested',b.untested_acceptance_criteria?.join(', ')||'—'],
+      ])));
+      if(b.findings?.length) parts.push(sec('Findings',detList(b.findings)));
+      if(b.regression_risks?.length) parts.push(sec('Regression risks',detList(b.regression_risks)));
+      if(b.command_results?.length) parts.push(sec('Commands',cmdList(b.command_results)));
+      break;
+    case 'release':
+      parts.push(sec('Release',grid([
+        ['Status',b.status],
+        ['Recommendation',b.recommendation?`<span class="badge badge-${b.recommendation}">${b.recommendation}</span>`:'—',1],
+        ['Rollback readiness',b.rollback_readiness],
+        ['Observability',b.observability_readiness],
+        ['Docs',b.documentation_readiness],
+      ])));
+      if(b.blocking_issues?.length) parts.push(sec('Blocking issues',detList(b.blocking_issues)));
+      if(b.known_risks?.length) parts.push(sec('Known risks',detList(b.known_risks)));
+      break;
+  }
+  parts.push(sec('Metadata',grid([
+    ['Producer',`${a.producer?.role} · ${a.producer?.model_provider}/${a.producer?.model_name}`],
+    ['Created',a.created_at_utc],['Confidence',a.confidence],['Artifact ID',a.artifact_id],
+  ])));
+  return parts.join('');
+}
+
+// ── Detail helpers ────────────────────────────────────────────────────────────
+const sec = (t,h) => `<div class="det-section"><div class="det-title">${x(t)}</div>${h}</div>`;
+const grid = rows => `<div class="det-grid">${rows.map(([l,v,html])=>`<span class="dg-label">${x(l)}</span><span class="dg-value">${html?v??'':x(String(v??'—'))}</span>`).join('')}</div>`;
+const detList = items => `<div class="det-list">${items.map(i=>`<div class="det-list-item">${x(i)}</div>`).join('')}</div>`;
+const acList = cs => `<div class="det-list">${cs.map(c=>`
+  <div class="ac-item">
+    <span class="ac-id">${x(c.id)}</span>
+    <span class="ac-text">${x(c.statement)}</span>
+    ${c.priority?`<span class="ac-pri"><span class="badge badge-${c.priority}">${c.priority}</span></span>`:''}
+  </div>`).join('')}</div>`;
+const hypList = hs => `<div class="det-list">${hs.map(h=>`
+  <div class="hyp-item">
+    <span class="hyp-rank">H-${h.rank} · rank ${h.rank}</span>
+    <span>${x(h.statement)}</span>
+    ${h.prediction?`<span class="hyp-pred">${x(h.prediction)}</span>`:''}
+  </div>`).join('')}</div>`;
+const fcList = cs => `<div class="det-list">${cs.map(c=>`
+  <div class="fc-item">
+    <span class="fca-${c.action}">${x(c.action)}</span>
+    <span>${x(c.path)}</span>
+  </div>`).join('')}</div>`;
+const cmdList = cs => `<div class="det-list">${cs.map(c=>`
+  <div class="cmd-item">
+    <span class="cmd-exit ${c.exit_code===0?'exit-ok':'exit-err'}">${c.exit_code}</span>
+    <span class="cmd-text">${x(c.command)}</span>
+    ${c.duration_ms?`<span class="cmd-dur">${c.duration_ms}ms</span>`:''}
+  </div>`).join('')}</div>`;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const wtBadge = t => t?`<span class="badge badge-${t}">${x(t.replace('_',' '))}</span>`:'';
+const gdSt = d => !d?'skip':['pass','not_applicable'].includes(d)?'pass':['fail','blocked'].includes(d)?'fail':d==='needs_changes'?'warn':'skip';
+const x = s => s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function jsonHL(obj) {
+  return JSON.stringify(obj,null,2)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(?:\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,m=>{
+      if(/^"/.test(m)) return /:$/.test(m)?`<span class="jk">${m}</span>`:`<span class="js">${m}</span>`;
+      if(/true|false/.test(m)) return `<span class="jb">${m}</span>`;
+      if(/null/.test(m)) return `<span class="jnull">${m}</span>`;
+      return `<span class="jn">${m}</span>`;
+    });
+}
+</script>
+</body>
+</html>

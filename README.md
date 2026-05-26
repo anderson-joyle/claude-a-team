@@ -193,8 +193,12 @@ The pipeline viewer is a single-file HTML app (`viewer/index.html`) that lets yo
 > Sessions live under `sessions/` — each subfolder is one request. You can load multiple session folders at once to compare runs side by side in the sidebar.
 
 ### Screenshot
+<img width="1855" height="1244" alt="Screenshot 2026-05-25 190821" src="https://github.com/user-attachments/assets/ea11e2f3-b48a-405e-bf01-8cfd62be2451" />
+<img width="1859" height="1248" alt="Screenshot 2026-05-25 190833" src="https://github.com/user-attachments/assets/5165cad7-3d04-4e4d-86a3-d07a89521092" />
+<img width="1858" height="1247" alt="Screenshot 2026-05-25 190847" src="https://github.com/user-attachments/assets/7ed865bb-ecf3-461b-8f84-f9a5f13d379d" />
 
-<!-- TODO: add screenshot here -->
+
+
 
 ---
 
